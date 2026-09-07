@@ -572,23 +572,23 @@ a {
   .logo { left: 5% !important; top: 4% !important; width: auto !important; }
   .logo span { font-size: 8vw !important; }
 
-  .brand { left: 5% !important; top: 12% !important; transform: none; }
+  .brand { left: 5% !important; top: 10% !important; transform: none; }
   .brand-name { font-size: 5vw; }
   .brand-sub { font-size: 2.5vw; margin-top: 1vh; }
 
   /* Navigation */
-  .nav-link { font-size: 3vw; top: 5%; }
-  .nav-services    { left: 30%; }
-  .nav-performance { left: 50%; }
-  .nav-atelier     { left: 70%; }
-  .nav-journal     { left: 90%; }
+  .nav-link { font-size: 2.5vw; top: 16%; }
+  .nav-services    { left: 15%; }
+  .nav-performance { left: 35%; }
+  .nav-atelier     { left: 60%; }
+  .nav-journal     { left: 85%; }
 
   .cta {
-    left: auto; right: 5%; top: 11%; width: 40%; height: 5vh; font-size: 3vw;
+    left: auto; right: 5%; top: 4%; width: 35%; height: 5vh; font-size: 3vw; transform: none;
   }
 
   /* Left text block */
-  .left-block { top: 20%; left: 5%; }
+  .left-block { top: 22%; left: 5%; }
   .kicker { font-size: 3vw; }
   .headline { font-size: 7vw; }
   .tagline { font-size: 3.5vw; }

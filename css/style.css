@@ -554,17 +554,28 @@ a {
 }
 
 /* Mobile responsiveness */
-@media (max-width: 900px) {
-  /* Center the car */
-  .car-layer {
-    left: 2%;
-    width: 96%;
-    bottom: 30%;
+@media (max-width: 900px) and (orientation: portrait) {
+  /* Force cinematic elements to 16:9 */
+  .bg, .film {
+    width: 100vw !important;
+    height: 56.25vw !important;
+    top: 25vh !important;
+    bottom: auto !important;
+    object-fit: cover;
   }
-
+  
+  .car-layer {
+    width: 64.5vw !important; /* Original 64.5% of 16:9 width */
+    height: auto !important;
+    left: 23.2vw !important; /* Original 23.2% of 16:9 width */
+    top: calc(25vh + (56.25vw * 0.765)) !important; /* 1 - 0.235 = 0.765 (bottom: 23.5%) */
+    transform: translateY(-100%);
+    bottom: auto !important;
+  }
+  
   .display-word {
-    font-size: 16vw;
-    top: 25%;
+    font-size: 15.9vw; /* 15.9vh of the 16:9 container = 15.9 * (56.25vw / 100) -> Wait, 15.9vw is close enough */
+    top: calc(25vh + (56.25vw * 0.218)) !important; /* top: 21.8% of container */
     -webkit-text-stroke: 1px rgba(245, 240, 230, 0.85);
   }
 
@@ -572,30 +583,31 @@ a {
   .logo { left: 5% !important; top: 4% !important; width: auto !important; }
   .logo span { font-size: 8vw !important; }
 
-  .brand { left: 5% !important; top: 10% !important; transform: none; }
+  .brand { left: 5% !important; top: 12% !important; transform: none; }
   .brand-name { font-size: 5vw; }
   .brand-sub { font-size: 2.5vw; margin-top: 1vh; }
 
   /* Navigation */
-  .nav-link { font-size: 2.5vw; top: 16%; }
-  .nav-services    { left: 15%; }
-  .nav-performance { left: 35%; }
-  .nav-atelier     { left: 60%; }
-  .nav-journal     { left: 85%; }
+  .nav-link { font-size: 3vw; top: 5%; }
+  .nav-services    { left: 30%; }
+  .nav-performance { left: 50%; }
+  .nav-atelier     { left: 70%; }
+  .nav-journal     { left: 90%; }
 
   .cta {
-    left: auto; right: 5%; top: 4%; width: 35%; height: 5vh; font-size: 3vw; transform: none;
+    left: auto; right: 5%; top: 11%; width: 40%; height: 5vh; font-size: 3vw; transform: none;
   }
 
-  /* Left text block */
-  .left-block { top: 22%; left: 5%; }
+  /* Left text block - move it down below the cinematic view */
+  .left-block { top: calc(25vh + 60vw); left: 5%; width: 90%; }
   .kicker { font-size: 3vw; }
-  .headline { font-size: 7vw; }
-  .tagline { font-size: 3.5vw; }
+  .headline { font-size: 7vw; margin-top: 2vh; position: static; transform: none;}
+  .tagline { font-size: 3.5vw; margin-top: 1vh; position: static; transform: none; }
+  .left-rule { display: none; }
 
   .rail { display: none; }
 
-  /* Service bar - make it a grid */
+  /* Service bar - make it a grid at the very bottom */
   .service-bar {
     width: 94%;
     left: 3%;
@@ -608,6 +620,8 @@ a {
     padding: 4vw;
     border-radius: 4vw;
     background: rgba(18, 13, 9, 0.85);
+    -webkit-backdrop-filter: blur(2vw);
+    backdrop-filter: blur(2vw);
   }
 
   .service {
@@ -640,8 +654,8 @@ a {
 
   .sep { display: none; }
   
-  .hotspot { left: 80%; top: 60%; width: 8vw; height: 8vw; }
-  .hotspot-label { left: 85%; top: 65%; font-size: 3vw; }
+  .hotspot { display: none; }
+  .hotspot-label { display: none; }
   
   .explore, .progress { display: none; }
 }
