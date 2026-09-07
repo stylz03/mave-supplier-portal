@@ -554,74 +554,74 @@ a {
 }
 
 
+
 /* Mobile responsiveness */
 @media (max-width: 900px) and (orientation: portrait) {
-  /* Make cinematic box taller (85vw) for a substantial hero */
+  /* 67vw height keeps the car's nose in frame horizontally */
   .bg, .film {
     width: 100vw !important;
-    height: 85vw !important;
-    top: 15vh !important;
+    height: 67vw !important;
+    top: 16vh !important;
     bottom: auto !important;
     object-fit: cover !important;
   }
   
-  /* Reset the car to exactly match the 85vw cinematic box */
+  /* Matches 67vw mathematically */
   .car-layer {
-    width: 97.46vw !important;
+    width: 76.8vw !important;
     height: auto !important;
-    left: 9.5vw !important;
-    top: calc(15vh + 65.025vw) !important; 
+    left: 18.08vw !important;
+    top: calc(16vh + 51.25vw) !important; 
     transform: translateY(-100%) !important;
     bottom: auto !important;
   }
   
   .display-word {
     font-size: 11vw !important;
-    top: calc(15vh + 18.5vw) !important;
+    top: calc(16vh + 14.6vw) !important;
     -webkit-text-stroke: 1px rgba(245, 240, 230, 0.85) !important;
   }
 
   /* Header adjustments */
-  .logo { left: 5% !important; top: 4% !important; width: auto !important; }
-  .logo span { font-size: 8vw !important; }
+  .logo { left: 5% !important; top: 3vh !important; width: auto !important; }
+  .logo span { font-size: 7vw !important; }
 
-  .brand { left: 5% !important; top: 10% !important; transform: none !important; }
-  .brand-name { font-size: 4.5vw !important; }
-  .brand-sub { font-size: 2.2vw !important; margin-top: 1vh !important; }
+  .brand { left: 5% !important; top: 8vh !important; transform: none !important; }
+  .brand-name { font-size: 4vw !important; }
+  .brand-sub { font-size: 2vw !important; margin-top: 1vh !important; }
 
   .nav-link { display: none !important; }
 
   .cta {
-    left: auto !important; right: 5% !important; top: 6% !important; 
+    left: auto !important; right: 5% !important; top: 4vh !important; 
     width: 40% !important; height: 5vh !important; font-size: 3vw !important; transform: none !important;
   }
 
   /* Left text block */
   .left-block { 
     position: absolute !important;
-    top: calc(15vh + 88vw) !important; 
+    top: calc(16vh + 67vw + 2vh) !important; 
     left: 5% !important; 
     width: 90% !important; 
   }
-  .kicker { font-size: 3.5vw !important; position: static !important; transform: none !important; margin-bottom: 1vh !important; }
-  .headline { font-size: 7.5vw !important; position: static !important; transform: none !important; margin-bottom: 1vh !important; }
-  .tagline { font-size: 4vw !important; position: static !important; transform: none !important; }
+  .kicker { font-size: 3vw !important; position: static !important; transform: none !important; margin-bottom: 1vh !important; }
+  .headline { font-size: 6.5vw !important; position: static !important; transform: none !important; margin-bottom: 0.5vh !important; }
+  .tagline { font-size: 3.5vw !important; position: static !important; transform: none !important; }
   .left-rule { display: none !important; }
-
   .rail { display: none !important; }
 
-  /* Service bar */
+  /* Service bar - pinned to BOTTOM so it never cuts off! */
   .service-bar {
     width: 94% !important;
     left: 3% !important;
     height: auto !important;
-    top: calc(15vh + 120vw) !important;
-    bottom: auto !important;
+    top: auto !important;
+    bottom: 2vh !important;
     display: flex !important;
     flex-wrap: wrap !important;
     justify-content: space-between !important;
-    padding: 5vw 4vw !important;
-    border-radius: 4vw !important;
+    padding: 3vw !important;
+    border-radius: 3vw !important;
     background: rgba(18, 13, 9, 0.85) !important;
   }
 
@@ -631,8 +631,8 @@ a {
     top: auto !important;
     transform: none !important;
     width: 45% !important; 
-    margin-bottom: 2vh !important;
-    gap: 2vw !important;
+    margin-bottom: 1vh !important;
+    gap: 1vw !important;
   }
 
   .total-suppliers {
@@ -645,14 +645,14 @@ a {
     align-items: center !important;
     flex-direction: row !important;
     gap: 3vw !important;
-    margin-top: 1vh !important;
+    margin-top: 0.5vh !important;
   }
 
-  .num { font-size: 7vw !important; }
-  .s-title { font-size: 3.5vw !important; }
-  .s-sub { font-size: 2.5vw !important; }
-  .tot-title { font-size: 5vw !important; }
-  .tot-num { font-size: 9vw !important; line-height: 1 !important; }
+  .num { font-size: 6vw !important; }
+  .s-title { font-size: 3vw !important; }
+  .s-sub { font-size: 2vw !important; }
+  .tot-title { font-size: 4vw !important; }
+  .tot-num { font-size: 7vw !important; line-height: 1 !important; }
 
   .sep { display: none !important; }
   .hotspot, .hotspot-label, .explore, .progress { display: none !important; }
