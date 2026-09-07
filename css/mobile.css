@@ -1,10 +1,10 @@
 /* Mobile responsiveness */
 @media (max-width: 900px) and (orientation: portrait) {
-  /* Center the cinematic box in the middle of the 100vh stage */
+  /* Center the cinematic box higher up on the screen */
   .bg, .film {
     width: 100vw !important;
     height: 56.25vw !important;
-    top: calc(50vh - 28.125vw) !important;
+    top: calc(35vh - 28.125vw) !important;
     bottom: auto !important;
     object-fit: cover !important;
   }
@@ -14,14 +14,14 @@
     width: 64.5vw !important; /* Original 64.5% of 16:9 width */
     height: auto !important;
     left: 23.2vw !important; /* Original 23.2% of 16:9 width */
-    top: calc(50vh - 28.125vw + (56.25vw * 0.765)) !important; /* 1 - 0.235 = 0.765 */
+    top: calc(35vh - 28.125vw + (56.25vw * 0.765)) !important; /* 1 - 0.235 = 0.765 */
     transform: translateY(-100%) !important;
     bottom: auto !important;
   }
   
   .display-word {
     font-size: 15.9vw !important;
-    top: calc(50vh - 28.125vw + (56.25vw * 0.218)) !important;
+    top: calc(35vh - 28.125vw + (56.25vw * 0.218)) !important;
     -webkit-text-stroke: 1px rgba(245, 240, 230, 0.85) !important;
   }
 
@@ -29,16 +29,12 @@
   .logo { left: 5% !important; top: 4% !important; width: auto !important; }
   .logo span { font-size: 8vw !important; }
 
-  .brand { left: 5% !important; top: 11% !important; transform: none !important; }
+  .brand { left: 5% !important; top: 12% !important; transform: none !important; }
   .brand-name { font-size: 5vw !important; }
   .brand-sub { font-size: 2.5vw !important; margin-top: 1vh !important; }
 
-  /* Navigation */
-  .nav-link { font-size: 2.5vw !important; top: 5% !important; }
-  .nav-services    { left: 30% !important; }
-  .nav-performance { left: 50% !important; }
-  .nav-atelier     { left: 70% !important; }
-  .nav-journal     { left: 90% !important; }
+  /* Navigation - hidden on mobile to avoid overlap */
+  .nav-link { display: none !important; }
 
   .cta {
     left: auto !important; right: 5% !important; top: 10% !important; 
@@ -47,13 +43,14 @@
 
   /* Left text block - move BELOW the cinematic box */
   .left-block { 
-    top: calc(50vh + 32vw) !important; 
+    position: absolute !important;
+    top: calc(35vh + 32vw) !important; 
     left: 5% !important; 
     width: 90% !important; 
   }
-  .kicker { font-size: 3vw !important; }
-  .headline { font-size: 7vw !important; margin-top: 2vh !important; position: static !important; transform: none !important;}
-  .tagline { font-size: 3.5vw !important; margin-top: 1vh !important; position: static !important; transform: none !important; }
+  .kicker { font-size: 3vw !important; position: static !important; transform: none !important; margin-bottom: 1vh !important; }
+  .headline { font-size: 7vw !important; position: static !important; transform: none !important; margin-bottom: 1vh !important; }
+  .tagline { font-size: 3.5vw !important; position: static !important; transform: none !important; }
   .left-rule { display: none !important; }
 
   .rail { display: none !important; }
@@ -63,8 +60,8 @@
     width: 94% !important;
     left: 3% !important;
     height: auto !important;
-    bottom: 3% !important;
-    top: auto !important;
+    top: calc(35vh + 60vw) !important;
+    bottom: auto !important;
     display: flex !important;
     flex-wrap: wrap !important;
     justify-content: space-between !important;
@@ -73,30 +70,32 @@
     background: rgba(18, 13, 9, 0.85) !important;
   }
 
+  /* 2 items per row */
   .service {
     position: relative !important;
     left: auto !important;
     top: auto !important;
     transform: none !important;
-    width: 30% !important;
+    width: 45% !important; 
     margin-bottom: 2vh !important;
     gap: 2vw !important;
   }
 
+  /* Total suppliers gets its own full row at the bottom */
   .total-suppliers {
     position: relative !important;
     left: auto !important;
     top: auto !important;
     transform: none !important;
-    width: 30% !important;
+    width: 100% !important;
     justify-content: center !important;
     align-items: center !important;
     flex-direction: column !important;
-    margin-bottom: 2vh !important;
+    margin-top: 1vh !important;
   }
 
   .num { font-size: 7vw !important; }
-  .s-title { font-size: 3vw !important; }
+  .s-title { font-size: 3.5vw !important; }
   .s-sub { font-size: 2.5vw !important; }
   .tot-title { font-size: 4vw !important; }
   .tot-num { font-size: 9vw !important; }
