@@ -68,7 +68,7 @@
     
     // Check if mobile portrait
     if (window.innerWidth < 900 && window.innerHeight > window.innerWidth) {
-      ch = window.innerWidth * (9/16); // Force 16:9 on mobile portrait
+      ch = window.innerWidth * 0.85; // Force 85vw height to make hero block substantial
     } else {
       ch = window.innerHeight;
     }
