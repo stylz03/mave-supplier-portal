@@ -134,6 +134,6 @@
   <!-- Scroll runway for the film (the stage itself stays fixed) -->
   <div class="scroll-space" aria-hidden="true"></div>
 
-  <script src="js/scroll-film.js?v=2" defer></script>
+  <script src="js/scroll-film.js" defer></script>
 </body>
 </html>
