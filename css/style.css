@@ -149,6 +149,11 @@ a {
 .film {
   position: absolute;
   inset: 0;
+  /* Explicit, not just inset:0 — canvas is a replaced element, so with
+     width/height auto it takes its intrinsic size instead of stretching
+     to the offsets, and collapses into the top-left corner. */
+  width: 100%;
+  height: 100%;
   z-index: 3;
   opacity: 0;
   pointer-events: none;
