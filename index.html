@@ -3,40 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MAVE — Pan-African Automotive Supply Chain</title>
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <title>MUREZA Supplier Portal — Pan-African Automotive Supply Chain</title>
+  <link rel="icon" href="assets/brand/favicon-mave.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=14">
 </head>
 <body>
   <main class="stage">
 
-    <!-- 1. Background plate -->
-    <img class="bg" src="assets/bg.png" alt="">
+    <!-- 1. Background plate — first frame of the film, so the static
+         hero and the scrubbed sequence are the same image -->
+    <img class="bg" src="assets/film-van/frame_0001.jpg" alt="">
 
     <!-- 2. Giant outline display word -->
     <h1 class="display-word">PARTNERS</h1>
 
-    <!-- 3. Hero car + floor reflection -->
-    <div class="car-layer">
-      <img class="car" src="assets/car.png" alt="">
-      <img class="car-reflection" src="assets/car.png" alt="" aria-hidden="true">
-    </div>
+    <!-- 3. (No separate car cutout: the van film frames are full-frame
+         composites, so the background plate above already shows the
+         vehicle. scroll-film.js tolerates a missing .car-layer.) -->
 
     <!-- 3b. Scroll-driven dismantling film (canvas sits above word + car, below UI) -->
-    <canvas class="film" id="film" aria-hidden="true"></canvas>
+    <canvas class="film" id="film" aria-hidden="true"
+            data-frames="240" data-dir="assets/film-van/"
+            data-prefix="frame_" data-ext=".jpg"></canvas>
 
     <!-- 3c. display word repeated above the film so it stays visible while scrolling -->
     <p class="display-word display-word--front" id="wordFront" aria-hidden="true">PARTNERS</p>
 
     <!-- 4. UI layer -->
     <header>
-      <!-- We change logo text to MAVE -->
-      <div class="logo" style="display: flex; align-items: center; justify-content: center; left: 3.3%; top: 4.2%; width: 8%; height: 8%;">
-        <span style="font-size: 1.5vw; font-weight: 700; color: #f2ede6; letter-spacing: 0.1em; font-family: sans-serif;">MAVE</span>
-      </div>
+      <!-- MAVE wordmark, @4x from mave.africa (332x54) — the largest
+           raster the brand publishes. Sized well below native so it
+           stays sharp on hi-dpi screens. -->
+      <a class="logo" href="https://mave.africa/" aria-label="MAVE — home">
+        <img src="assets/brand/mave_logo.png" alt="MAVE" width="332" height="54">
+      </a>
 
-      <div class="brand" style="left: 12.5%;">
-        <p class="brand-name">MUREZA</p>
-        <p class="brand-sub">PAN-AFRICAN AUTOMOTIVE SUPPLY CHAIN</p>
+      <!-- Descriptor line lives in the hero tagline, not here: at 1440 the
+           full "PAN-AFRICAN AUTOMOTIVE SUPPLY CHAIN" ran 261px and collided
+           with the nav. Wordmark + section name is the cleaner lockup. -->
+      <div class="brand">
+        <p class="brand-name">SUPPLIER PORTAL</p>
       </div>
 
       <nav aria-label="Primary">
@@ -134,6 +144,7 @@
   <!-- Scroll runway for the film (the stage itself stays fixed) -->
   <div class="scroll-space" aria-hidden="true"></div>
 
-  <script src="js/scroll-film.js?v=5" defer></script>
+  <script src="js/scroll-film.js?v=12" defer></script>
+  <script src="js/ui-motion.js?v=3" defer></script>
 </body>
 </html>

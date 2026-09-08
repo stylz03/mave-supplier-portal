@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "vanta-preview",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8899", "--bind", "127.0.0.1"],
+      "name": "mave-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/serve.js", "8899"],
       "port": 8899
     }
   ]

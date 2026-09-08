@@ -10,6 +10,39 @@
   box-sizing: border-box;
 }
 
+/* ------------------------------------------------------------
+   UI type scale.
+   Every size was previously a bare vw, tuned against a 1920 mock —
+   which put most labels at 8-10px on a 1440 laptop. These keep the
+   vw growth on large screens but hold a readable px floor, and the
+   ceiling stops the type ballooning on ultrawide.
+   Tracking is part of the scale: the smaller the size, the more
+   letter-spacing it needs to stay legible in caps.
+   ------------------------------------------------------------ */
+:root {
+  --t-micro: clamp(9.5px, 0.58vw, 13px);   /* kickers, sub-labels */
+  --t-small: clamp(10.5px, 0.66vw, 14px);  /* rail, footer, tier titles */
+  --t-body:  clamp(11.5px, 0.75vw, 16px);  /* nav, CTA, tagline */
+  --t-lead:  clamp(12.5px, 0.86vw, 18px);  /* portal name */
+  --t-head:  clamp(17px, 1.2vw, 26px);     /* headline */
+  --t-num:   clamp(21px, 1.6vw, 34px);     /* tier counts */
+  --t-total: clamp(28px, 2.2vw, 46px);     /* total */
+
+  --ls-wide:  0.28em;
+  --ls-caps:  0.2em;
+  --ls-tight: 0.12em;
+
+  /* Built-in CSS easings are too weak for this; these are the
+     standard strong curves. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --ink:       #f7f2ea;
+  --ink-dim:   #d5cabb;
+  --ink-faint: #a99e90;
+  --gold:      #cf8f45;
+}
+
 html,
 body {
   width: 100%;
@@ -23,9 +56,12 @@ body {
   min-height: 100%;
 }
 
-/* Scroll runway: gives the fixed stage its scrub range */
+/* Scroll runway: gives the fixed stage its scrub range.
+   Sized so each frame gets about the same scroll distance as the
+   original 300-frame sequence did at 760vh (~2.5vh per frame);
+   240 frames x 2.5 = ~600vh. Rescale this if the frame count changes. */
 .scroll-space {
-  height: 760vh;
+  height: 600vh;
   pointer-events: none;
 }
 
@@ -34,10 +70,13 @@ body {
   display: none;
 }
 
+/* DM Sans is the MUREZA brand face (sales.mave.africa). Used for all UI
+   text; the giant display word keeps its geometric stack below, which is
+   what gives the outline type its character. */
 body {
   overflow-x: hidden;
   background: #1b140e;
-  font-family: "Avenir Next", "Century Gothic", "Futura", "Trebuchet MS", sans-serif;
+  font-family: "DM Sans", "Avenir Next", "Century Gothic", "Futura", "Trebuchet MS", sans-serif;
   font-weight: 400;
   color: #f2ede6;
   -webkit-font-smoothing: antialiased;
@@ -99,37 +138,8 @@ a {
   will-change: opacity;
 }
 
-/* ------------------------------------------------------------
-   Layer 3 — hero car + reflection (STUDY §5)
-   x 19.7% → 87.9% W, wheels-bottom at 76.5% H
-   ------------------------------------------------------------ */
-.car-layer {
-  position: absolute;
-  z-index: 3;
-  left: 23.2%;
-  width: 64.5%;
-  bottom: 23.5%;
-}
-
-.car {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.car-reflection {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  height: auto;
-  transform: scaleY(-1);
-  opacity: 0.22;
-  /* element is flipped, so local bottom = visual top of the reflection:
-     keep only the top ~30% of the flipped copy visible */
-  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 30%);
-  mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 30%);
-}
+/* Layer 3 (hero car cutout) removed: the van film frames are
+   full-frame composites, so there is no separate cutout to place. */
 
 /* ------------------------------------------------------------
    Layer 3b — scroll film canvas: above word + car, below UI.
@@ -144,40 +154,105 @@ a {
   pointer-events: none;
 }
 
+/* Both copies of the display word are moved by js/scroll-film.js as the
+   film scrubs, so hint transform as well as opacity. */
 .display-word,
-.car-layer {
-  will-change: opacity;
+.display-word--front {
+  will-change: opacity, transform;
+  transform-origin: 50% 50%;
+}
+
+/* ------------------------------------------------------------
+   Entrance choreography.
+
+   Uses the independent `translate` property rather than
+   `transform`, because almost every element in the UI layer is
+   absolutely positioned and already carries a centring transform
+   (translate(-50%, -50%)). Writing to `transform` here would fight
+   that; `translate` composes with it instead.
+
+   js/ui-motion.js adds .reveal and sets --d (the stagger delay),
+   then puts .is-ready on <html> to release them.
+   ------------------------------------------------------------ */
+.reveal {
+  opacity: 0;
+  translate: 0 12px;
+  transition:
+    opacity 460ms var(--ease-out) var(--d, 0ms),
+    translate 460ms var(--ease-out) var(--d, 0ms);
+}
+
+.is-ready .reveal {
+  opacity: 1;
+  translate: none;
+}
+
+/* Counting digits change width mid-animation; tabular figures stop
+   the tier bar jittering as they run. */
+.num,
+.tot-num,
+.rail-count {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* The progress line is driven from JS, so give the width and offset
+   a curve rather than letting them jump per scroll event. */
+.progress .done,
+.progress .gold-seg {
+  transition: width 120ms linear, left 120ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the fade — it still sequences the interface — but drop the
+     movement, and land everything at once instead of staggering. */
+  .reveal {
+    translate: none;
+    transition: opacity 240ms ease;
+    transition-delay: 0ms;
+  }
+
+  .progress .done,
+  .progress .gold-seg {
+    transition: none;
+  }
 }
 
 /* ------------------------------------------------------------
    Layer 4 — UI. Header (STUDY §6a), row center-line y ≈ 8.1% H
    ------------------------------------------------------------ */
+/* Wordmark sits on the nav centre-line (8.1% H). Source is 332x54, so
+   the ceiling below keeps it under native width and therefore sharp. */
 .logo {
   position: absolute;
   z-index: 4;
   left: 3.3%;
-  top: 4.2%;
-  width: 4.8%;
-  height: 8%;
+  top: 8.1%;
+  transform: translateY(-50%);
+  width: clamp(112px, 10.5vw, 200px);
+  display: block;
 }
 
-.logo svg {
+.logo img {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
 }
 
 .brand {
   position: absolute;
   z-index: 4;
-  left: 8.9%;
+  left: 15.5%;
   top: 8.1%;
   transform: translateY(-50%);
   white-space: nowrap;
+  /* hairline divider between wordmark and portal name */
+  padding-left: 1.6vw;
+  border-left: 1px solid rgba(240, 233, 220, 0.22);
 }
 
 .brand-name {
-  font-size: 0.78vw;
+  font-size: var(--t-lead);
   font-weight: 500;
   letter-spacing: 0.25em;
   color: #f7f2ea;
@@ -185,27 +260,77 @@ a {
 
 .brand-sub {
   margin-top: 0.75vh;
-  font-size: 0.57vw;
+  font-size: var(--t-micro);
   letter-spacing: 0.22em;
   color: #cabda9;
 }
 
-.nav-link {
+/* The nav was four absolutely-positioned links at fixed percentages
+   (36.2 / 45.9 / 55.3 / 63.5), so the gaps between them drifted with
+   word length — OVERVIEW and INFRASTRUCTURE are very different widths.
+   A flex row gives one gap value that holds no matter what the labels
+   say, and survives renaming them later. */
+header nav {
   position: absolute;
   z-index: 4;
   top: 8.1%;
+  left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 0.72vw;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  color: #efe9df;
+  display: flex;
+  align-items: center;
+  gap: clamp(1.5rem, 2.6vw, 3.4rem);
   white-space: nowrap;
 }
 
-.nav-services    { left: 36.2%; }
-.nav-performance { left: 45.9%; }
-.nav-atelier     { left: 55.3%; }
-.nav-journal     { left: 63.5%; }
+.nav-link {
+  position: relative;
+  font-size: var(--t-body);
+  font-weight: 500;
+  letter-spacing: var(--ls-caps);
+  /* caps tracking adds a trailing space after the last letter; pulling
+     it back keeps the optical gaps equal to the flex gap */
+  margin-right: calc(var(--ls-caps) * -1);
+  color: var(--ink-dim);
+  padding-block: 0.5em;
+  transition: color 200ms ease;
+}
+
+/* hairline that opens from the centre on hover */
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 1px;
+  background: var(--gold);
+  transform: translateX(-50%);
+  transition: width 200ms var(--ease-out);
+}
+
+/* Nav is looked at constantly, so the hover stays near-imperceptible:
+   200ms, colour plus a hairline, nothing that moves the label.
+   Gated to real pointers — touch fires a false hover on tap and the
+   underline would stick. */
+@media (hover: hover) and (pointer: fine) {
+  .nav-link:hover {
+    color: var(--ink);
+  }
+
+  .nav-link:hover::after {
+    width: calc(100% - var(--ls-caps));
+  }
+
+  .cta {
+    transition: border-color 200ms var(--ease-out),
+                background-color 200ms var(--ease-out);
+  }
+
+  .cta:hover {
+    border-color: rgba(240, 233, 220, 0.95);
+    background: rgba(207, 143, 69, 0.16);
+  }
+}
 
 /* Dark glassy pill — x 84.3–96.5% W, y 5.6–10.6% H */
 .cta {
@@ -223,7 +348,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.72vw;
+  font-size: var(--t-body);
   font-weight: 500;
   letter-spacing: 0.18em;
   color: #f7f2ea;
@@ -259,7 +384,7 @@ a {
   left: 5%;
   top: 42.4%;
   transform: translateY(-50%);
-  font-size: 0.58vw;
+  font-size: var(--t-micro);
   font-weight: 500;
   letter-spacing: 0.22em;
   color: #e6dac6;
@@ -272,7 +397,7 @@ a {
   left: 5%;
   top: 46.2%;
   transform: translateY(-50%);
-  font-size: 1.14vw;
+  font-size: var(--t-head);
   font-weight: 500;
   letter-spacing: 0.04em;
   color: #f8f3eb;
@@ -285,7 +410,7 @@ a {
   left: 5%;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 0.75vw;
+  font-size: var(--t-body);
   font-weight: 400;
   color: #d5cabb;
   white-space: nowrap;
@@ -300,7 +425,7 @@ a {
   left: 96.8%;
   top: 49.75%;
   transform: translate(-50%, -50%) rotate(-90deg);
-  font-size: 0.6vw;
+  font-size: var(--t-micro);
   font-weight: 500;
   letter-spacing: 0.28em;
   color: #e2dacd;
@@ -313,7 +438,7 @@ a {
   left: 96.5%;
   top: 66%;
   transform: translate(-50%, -50%);
-  font-size: 0.66vw;
+  font-size: var(--t-small);
   letter-spacing: 0.15em;
   color: #f2ede6;
   white-space: nowrap;
@@ -370,7 +495,7 @@ a {
   left: 66.2%;
   top: 72.4%;
   transform: translateY(-50%);
-  font-size: 0.54vw;
+  font-size: var(--t-micro);
   font-weight: 500;
   letter-spacing: 0.25em;
   color: #f5f0e7;
@@ -413,7 +538,7 @@ a {
 .service-5 { left: 68.6%; }
 
 .num {
-  font-size: 1.56vw;
+  font-size: var(--t-num);
   font-weight: 200;
   letter-spacing: 0.04em;
   color: #cfc8bd;
@@ -426,14 +551,14 @@ a {
 }
 
 .s-title {
-  font-size: 0.65vw;
+  font-size: var(--t-small);
   font-weight: 500;
   letter-spacing: 0.15em;
   color: #f7f2ea;
 }
 
 .s-sub {
-  font-size: 0.55vw;
+  font-size: var(--t-micro);
   font-weight: 400;
   letter-spacing: 0.12em;
   color: #c6bcb0;
@@ -469,14 +594,14 @@ a {
 }
 
 .tot-title {
-  font-size: 0.8vw;
+  font-size: var(--t-small);
   font-weight: 700;
   letter-spacing: 0.2em;
   color: #f7f2ea;
 }
 
 .tot-num {
-  font-size: 2.2vw;
+  font-size: var(--t-total);
   font-weight: 700;
   color: #cf8f45;
 }
@@ -490,7 +615,7 @@ a {
   left: 49%;
   top: 93.7%;
   transform: translate(-50%, -50%);
-  font-size: 0.66vw;
+  font-size: var(--t-small);
   font-weight: 500;
   letter-spacing: 0.35em;
   color: #e8e1d6;
@@ -555,58 +680,65 @@ a {
 
 
 
-/* Mobile responsiveness */
+/* ------------------------------------------------------------
+   Mobile — portrait phones and small tablets.
+
+   The hero band is driven by --hero-h so the stack below it can be
+   derived from one number instead of repeating the arithmetic. The
+   canvas reads its own height from here (see js/scroll-film.js), so
+   changing this value is all that's needed.
+   ------------------------------------------------------------ */
 @media (max-width: 900px) and (orientation: portrait) {
-  /* 67vw height keeps the car's nose in frame horizontally */
+  :root {
+    --hero-top: 13vh;
+    --hero-h: min(92vw, 42vh);
+  }
+
   .bg, .film {
     width: 100vw !important;
-    height: 67vw !important;
-    top: 16vh !important;
+    height: var(--hero-h) !important;
+    top: var(--hero-top) !important;
     bottom: auto !important;
     object-fit: cover !important;
   }
-  
-  /* Matches 67vw mathematically */
-  .car-layer {
-    width: 76.8vw !important;
-    height: auto !important;
-    left: 18.08vw !important;
-    top: calc(16vh + 51.25vw) !important; 
-    transform: translateY(-100%) !important;
-    bottom: auto !important;
-  }
-  
+
   .display-word {
-    font-size: 11vw !important;
-    top: calc(16vh + 14.6vw) !important;
+    font-size: min(12.5vw, 62px) !important;
+    top: calc(var(--hero-top) + 12vw) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
     -webkit-text-stroke: 1px rgba(245, 240, 230, 0.85) !important;
   }
 
   /* Header adjustments */
-  .logo { left: 5% !important; top: 3vh !important; width: auto !important; }
-  .logo span { font-size: 7vw !important; }
+  .logo { left: 5% !important; top: 3vh !important; width: min(34vw, 180px) !important; transform: none !important; }
 
-  .brand { left: 5% !important; top: 8vh !important; transform: none !important; }
-  .brand-name { font-size: 4vw !important; }
-  .brand-sub { font-size: 2vw !important; margin-top: 1vh !important; }
+  .brand {
+    left: 5% !important; top: 8.2vh !important; transform: none !important;
+    padding-left: 0 !important; border-left: 0 !important;
+  }
+  .brand-name { font-size: min(3.4vw, 16px) !important; }
 
-  .nav-link { display: none !important; }
+  /* hide the whole row, not just the links, so the flex gaps go too */
+  header nav { display: none !important; }
 
   .cta {
-    left: auto !important; right: 5% !important; top: 4vh !important; 
-    width: 40% !important; height: 5vh !important; font-size: 3vw !important; transform: none !important;
+    left: auto !important; right: 5% !important; top: 3vh !important;
+    width: 40% !important; height: 4.4vh !important;
+    font-size: min(3vw, 14px) !important; transform: none !important;
   }
 
-  /* Left text block */
-  .left-block { 
+  /* Sits directly under the hero band; the gap is one value, not a
+     repeat of the band arithmetic. */
+  .left-block {
     position: absolute !important;
-    top: calc(16vh + 67vw + 2vh) !important; 
-    left: 5% !important; 
-    width: 90% !important; 
+    top: calc(var(--hero-top) + var(--hero-h) + 3.5vh) !important;
+    left: 5% !important;
+    width: 90% !important;
   }
-  .kicker { font-size: 3vw !important; position: static !important; transform: none !important; margin-bottom: 1vh !important; }
-  .headline { font-size: 6.5vw !important; position: static !important; transform: none !important; margin-bottom: 0.5vh !important; }
-  .tagline { font-size: 3.5vw !important; position: static !important; transform: none !important; }
+  .kicker { font-size: min(3vw, 14px) !important; position: static !important; transform: none !important; margin-bottom: 1vh !important; }
+  .headline { font-size: min(6.5vw, 32px) !important; position: static !important; transform: none !important; margin-bottom: 0.5vh !important; }
+  .tagline { font-size: min(3.5vw, 17px) !important; position: static !important; transform: none !important; }
   .left-rule { display: none !important; }
   .rail { display: none !important; }
 
@@ -620,8 +752,8 @@ a {
     display: flex !important;
     flex-wrap: wrap !important;
     justify-content: space-between !important;
-    padding: 3vw !important;
-    border-radius: 3vw !important;
+    padding: min(3vw, 20px) !important;
+    border-radius: min(3vw, 18px) !important;
     background: rgba(18, 13, 9, 0.85) !important;
   }
 
@@ -648,12 +780,61 @@ a {
     margin-top: 0.5vh !important;
   }
 
-  .num { font-size: 6vw !important; }
-  .s-title { font-size: 3vw !important; }
-  .s-sub { font-size: 2vw !important; }
-  .tot-title { font-size: 4vw !important; }
-  .tot-num { font-size: 7vw !important; line-height: 1 !important; }
+  .num { font-size: min(6vw, 30px) !important; }
+  .s-title { font-size: min(3vw, 15px) !important; }
+  .s-sub { font-size: min(2vw, 12px) !important; }
+  .tot-title { font-size: min(4vw, 18px) !important; }
+  .tot-num { font-size: min(7vw, 34px) !important; line-height: 1 !important; }
 
   .sep { display: none !important; }
   .hotspot, .hotspot-label, .explore, .progress { display: none !important; }
+}
+
+/* ------------------------------------------------------------
+   Landscape phones and short viewports.
+
+   Previously unhandled: the only mobile query required
+   orientation: portrait, so a phone turned sideways fell through to
+   the desktop layout and got desktop type on a 375px-tall screen.
+   Here the desktop composition still works — it is a 16:9 stage —
+   but everything needs to shrink and the non-essentials go.
+   ------------------------------------------------------------ */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --t-micro: 8px;
+    --t-small: 9px;
+    --t-body:  10px;
+    --t-lead:  11px;
+    --t-head:  15px;
+    --t-num:   17px;
+    --t-total: 22px;
+  }
+
+  .logo { width: clamp(84px, 12vw, 120px); }
+
+  /* Wordmark + descriptor + nav + CTA will not fit across a header
+     this short — the descriptor ran into OVERVIEW by ~57px at
+     812x375. The logo carries the brand on its own here. */
+  .brand { display: none; }
+
+  header nav { gap: clamp(0.9rem, 2vw, 1.6rem); }
+
+  .cta { height: 8.5%; }
+
+  /* the rail and hotspot are the first things to crowd a short stage */
+  .rail-vertical,
+  .hotspot,
+  .hotspot-label { display: none; }
+
+  .service-bar { height: 15%; }
+  .explore { display: none; }
+}
+
+/* Very narrow phones: keep the tier bar two-up rather than letting
+   the numbers and labels collide. */
+@media (max-width: 360px) and (orientation: portrait) {
+  .service { width: 47% !important; }
+  .num { font-size: 5.4vw !important; }
+  .s-title { font-size: 2.9vw !important; }
+  .s-sub { font-size: 2.3vw !important; }
 }

@@ -1,0 +1,6 @@
+# Build tooling and working files — not part of the site
+tools/
+reference/
+*.md
+!index.html
+.claude/

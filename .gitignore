@@ -1,1 +1,13 @@
 .vercel
+
+# Secrets — never commit (this repo is public)
+.env
+.env.*
+!.env.example
+*.key
+secrets.json
+
+# Generated / working assets
+tools/node_modules/
+tools/out/
+assets/film-van/raw/
