@@ -9,7 +9,7 @@
    Includes full offline/localStorage fallback for instant resilience.
    ============================================================ */
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore,
   doc,
@@ -67,18 +67,31 @@ export function initFirebase(customKey) {
   FIREBASE_CONFIG.apiKey = key;
 
   try {
-    app = initializeApp(FIREBASE_CONFIG, "MaveSupplierPortal");
+    const existingApps = getApps();
+    const named = existingApps.find((a) => a.name === "MaveSupplierPortal");
+    if (named) {
+      app = named;
+    } else {
+      app = initializeApp(FIREBASE_CONFIG, "MaveSupplierPortal");
+    }
     db = getFirestore(app);
     storage = getStorage(app);
     isConnected = true;
     console.log("[Firebase] Initialized connection to mave-invest-prod");
+    attachAllFirestoreListeners();
     return true;
   } catch (err) {
     try {
-      app = initializeApp(FIREBASE_CONFIG);
+      const existingApps = getApps();
+      if (existingApps.length > 0) {
+        app = existingApps[0];
+      } else {
+        app = initializeApp(FIREBASE_CONFIG);
+      }
       db = getFirestore(app);
       storage = getStorage(app);
       isConnected = true;
+      attachAllFirestoreListeners();
       return true;
     } catch (e) {
       console.warn("[Firebase] Init note:", e.message);
@@ -109,6 +122,10 @@ export function setFirebaseApiKey(key) {
     return initFirebase(key.trim());
   }
   return false;
+}
+
+export function getIsConnected() {
+  return isConnected && db !== null;
 }
 
 export { app, db, storage, isConnected };
@@ -302,6 +319,111 @@ function writeLocal(key, val) {
 }
 
 // ============================================================
+// REACTIVE PUB-SUB EVENT BUS & REAL-TIME FIRESTORE BINDINGS
+// ============================================================
+
+const subscribers = {
+  content: new Set(),
+  tiers: new Set(),
+  submissions: new Set(),
+  notifications: new Set()
+};
+
+const firestoreUnsubs = {
+  content: null,
+  tiers: null,
+  submissions: null,
+  notifications: null
+};
+
+function emitSubscribers(type, data) {
+  if (!subscribers[type]) return;
+  subscribers[type].forEach((cb) => {
+    try {
+      cb(data);
+    } catch (e) {
+      console.warn(`[Subscriber callback error: ${type}]`, e);
+    }
+  });
+}
+
+function attachFirestoreListener(type) {
+  if (!db || subscribers[type].size === 0 || firestoreUnsubs[type]) return;
+
+  try {
+    if (type === "content") {
+      const contentDocRef = doc(db, "supplierPortal", "content");
+      firestoreUnsubs.content = onSnapshot(
+        contentDocRef,
+        (snap) => {
+          if (snap.exists()) {
+            const data = { ...DEFAULT_PAGE_CONTENT, ...snap.data() };
+            writeLocal(STORAGE_KEYS.CONTENT, data);
+            emitSubscribers("content", data);
+          } else {
+            saveSiteContent(DEFAULT_PAGE_CONTENT).catch(() => {});
+          }
+        },
+        (err) => console.warn("[Firebase] Content sync notice:", err.message)
+      );
+    } else if (type === "tiers") {
+      const tiersColRef = collection(db, "supplierTiers");
+      firestoreUnsubs.tiers = onSnapshot(
+        tiersColRef,
+        (snap) => {
+          if (!snap.empty) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            writeLocal(STORAGE_KEYS.TIERS, list);
+            emitSubscribers("tiers", list);
+          } else {
+            seedDefaultTiers().catch(() => {});
+          }
+        },
+        (err) => console.warn("[Firebase] Tiers sync notice:", err.message)
+      );
+    } else if (type === "submissions") {
+      const subsColRef = collection(db, "supplierSubmissions");
+      firestoreUnsubs.submissions = onSnapshot(
+        subsColRef,
+        (snap) => {
+          if (!snap.empty) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            list.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
+            writeLocal(STORAGE_KEYS.SUBMISSIONS, list);
+            emitSubscribers("submissions", list);
+          }
+        },
+        (err) => console.warn("[Firebase] Submissions sync notice:", err.message)
+      );
+    } else if (type === "notifications") {
+      const notifsColRef = collection(db, "supplierNotifications");
+      firestoreUnsubs.notifications = onSnapshot(
+        notifsColRef,
+        (snap) => {
+          if (!snap.empty) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            writeLocal(STORAGE_KEYS.NOTIFICATIONS, list);
+            emitSubscribers("notifications", list);
+          }
+        },
+        (err) => console.warn("[Firebase] Notifications sync notice:", err.message)
+      );
+    }
+  } catch (err) {
+    console.warn(`[Firebase] Could not attach listener for ${type}:`, err.message);
+  }
+}
+
+function attachAllFirestoreListeners() {
+  if (!db) return;
+  attachFirestoreListener("content");
+  attachFirestoreListener("tiers");
+  attachFirestoreListener("submissions");
+  attachFirestoreListener("notifications");
+}
+
+// ============================================================
 // 1. PAGE CONTENT API
 // ============================================================
 
@@ -310,36 +432,22 @@ export function onSiteContentSnapshot(callback) {
   const cached = readLocal(STORAGE_KEYS.CONTENT, DEFAULT_PAGE_CONTENT);
   callback(cached);
 
-  if (!db) return () => {};
+  subscribers.content.add(callback);
+  attachFirestoreListener("content");
 
-  try {
-    const contentDocRef = doc(db, "supplierPortal", "content");
-    const unsubscribe = onSnapshot(
-      contentDocRef,
-      (snap) => {
-        if (snap.exists()) {
-          const data = { ...DEFAULT_PAGE_CONTENT, ...snap.data() };
-          writeLocal(STORAGE_KEYS.CONTENT, data);
-          callback(data);
-        } else {
-          // Document does not exist yet; save default seed
-          saveSiteContent(DEFAULT_PAGE_CONTENT).catch(() => {});
-        }
-      },
-      (err) => {
-        console.warn("[Firebase] onSiteContentSnapshot fallback:", err.message);
-      }
-    );
-    return unsubscribe;
-  } catch (err) {
-    console.warn("[Firebase] Content subscription failed, using local cache:", err.message);
-    return () => {};
-  }
+  return () => {
+    subscribers.content.delete(callback);
+    if (subscribers.content.size === 0 && firestoreUnsubs.content) {
+      firestoreUnsubs.content();
+      firestoreUnsubs.content = null;
+    }
+  };
 }
 
 export async function saveSiteContent(data) {
   const merged = { ...DEFAULT_PAGE_CONTENT, ...data, lastUpdated: new Date().toISOString() };
   writeLocal(STORAGE_KEYS.CONTENT, merged);
+  emitSubscribers("content", merged);
 
   if (!db) return merged;
 
@@ -348,7 +456,7 @@ export async function saveSiteContent(data) {
     await setDoc(contentDocRef, merged, { merge: true });
     console.log("[Firebase] Page content saved successfully to Firestore");
   } catch (err) {
-    console.warn("[Firebase] Could not save content to Firestore, saved locally:", err.message);
+    console.warn("[Firebase] Could not save content to Firestore, preserved locally:", err.message);
   }
   return merged;
 }
@@ -362,34 +470,22 @@ export function onTiersSnapshot(callback) {
   const cached = readLocal(STORAGE_KEYS.TIERS, DEFAULT_TIERS);
   callback(cached);
 
-  if (!db) return () => {};
+  subscribers.tiers.add(callback);
+  attachFirestoreListener("tiers");
 
-  try {
-    const tiersColRef = collection(db, "supplierTiers");
-    const unsubscribe = onSnapshot(
-      tiersColRef,
-      (snap) => {
-        if (!snap.empty) {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          writeLocal(STORAGE_KEYS.TIERS, list);
-          callback(list);
-        } else {
-          // Seed defaults if collection is empty
-          seedDefaultTiers().catch(() => {});
-        }
-      },
-      (err) => {
-        console.warn("[Firebase] onTiersSnapshot fallback:", err.message);
-      }
-    );
-    return unsubscribe;
-  } catch (err) {
-    console.warn("[Firebase] Tiers subscription failed:", err.message);
-    return () => {};
-  }
+  return () => {
+    subscribers.tiers.delete(callback);
+    if (subscribers.tiers.size === 0 && firestoreUnsubs.tiers) {
+      firestoreUnsubs.tiers();
+      firestoreUnsubs.tiers = null;
+    }
+  };
 }
 
 export async function seedDefaultTiers() {
+  writeLocal(STORAGE_KEYS.TIERS, DEFAULT_TIERS);
+  emitSubscribers("tiers", DEFAULT_TIERS);
+
   if (!db) return;
   try {
     for (const tier of DEFAULT_TIERS) {
@@ -411,6 +507,7 @@ export async function saveTier(tierData) {
   if (idx >= 0) current[idx] = fullTier;
   else current.push(fullTier);
   writeLocal(STORAGE_KEYS.TIERS, current);
+  emitSubscribers("tiers", current);
 
   if (db) {
     try {
@@ -426,6 +523,7 @@ export async function saveTier(tierData) {
 export async function deleteTier(id) {
   const current = readLocal(STORAGE_KEYS.TIERS, DEFAULT_TIERS).filter((t) => t.id !== id);
   writeLocal(STORAGE_KEYS.TIERS, current);
+  emitSubscribers("tiers", current);
 
   if (db) {
     try {
@@ -551,6 +649,7 @@ export async function submitSupplierRegistration(formData, files = []) {
   const current = readLocal(STORAGE_KEYS.SUBMISSIONS, []);
   current.unshift(submission);
   writeLocal(STORAGE_KEYS.SUBMISSIONS, current);
+  emitSubscribers("submissions", current);
 
   // 2. Add local notification
   addNotification({
@@ -592,30 +691,16 @@ export function onSubmissionsSnapshot(callback) {
   const cached = readLocal(STORAGE_KEYS.SUBMISSIONS, []);
   callback(cached);
 
-  if (!db) return () => {};
+  subscribers.submissions.add(callback);
+  attachFirestoreListener("submissions");
 
-  try {
-    const subsColRef = collection(db, "supplierSubmissions");
-    const unsubscribe = onSnapshot(
-      subsColRef,
-      (snap) => {
-        if (!snap.empty) {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          // Sort newest first
-          list.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
-          writeLocal(STORAGE_KEYS.SUBMISSIONS, list);
-          callback(list);
-        }
-      },
-      (err) => {
-        console.warn("[Firebase] onSubmissionsSnapshot notice:", err.message);
-      }
-    );
-    return unsubscribe;
-  } catch (err) {
-    console.warn("[Firebase] Submissions listener note:", err.message);
-    return () => {};
-  }
+  return () => {
+    subscribers.submissions.delete(callback);
+    if (subscribers.submissions.size === 0 && firestoreUnsubs.submissions) {
+      firestoreUnsubs.submissions();
+      firestoreUnsubs.submissions = null;
+    }
+  };
 }
 
 export async function updateSubmission(id, patch) {
@@ -625,6 +710,7 @@ export async function updateSubmission(id, patch) {
   if (idx >= 0) {
     current[idx] = { ...current[idx], ...patch, updatedAt: new Date().toISOString() };
     writeLocal(STORAGE_KEYS.SUBMISSIONS, current);
+    emitSubscribers("submissions", current);
   }
 
   // Update Firestore
@@ -662,6 +748,7 @@ export function addNotification(notification) {
   const current = readLocal(STORAGE_KEYS.NOTIFICATIONS, []);
   current.unshift(n);
   writeLocal(STORAGE_KEYS.NOTIFICATIONS, current.slice(0, 50));
+  emitSubscribers("notifications", current);
   return n;
 }
 
@@ -669,29 +756,16 @@ export function onNotificationsSnapshot(callback) {
   const cached = readLocal(STORAGE_KEYS.NOTIFICATIONS, []);
   callback(cached);
 
-  if (!db) return () => {};
+  subscribers.notifications.add(callback);
+  attachFirestoreListener("notifications");
 
-  try {
-    const notifsColRef = collection(db, "supplierNotifications");
-    const unsubscribe = onSnapshot(
-      notifsColRef,
-      (snap) => {
-        if (!snap.empty) {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-          writeLocal(STORAGE_KEYS.NOTIFICATIONS, list);
-          callback(list);
-        }
-      },
-      (err) => {
-        console.warn("[Firebase] onNotificationsSnapshot notice:", err.message);
-      }
-    );
-    return unsubscribe;
-  } catch (err) {
-    console.warn("[Firebase] Notifications listener notice:", err.message);
-    return () => {};
-  }
+  return () => {
+    subscribers.notifications.delete(callback);
+    if (subscribers.notifications.size === 0 && firestoreUnsubs.notifications) {
+      firestoreUnsubs.notifications();
+      firestoreUnsubs.notifications = null;
+    }
+  };
 }
 
 export async function markNotificationRead(id) {
@@ -700,6 +774,7 @@ export async function markNotificationRead(id) {
   if (idx >= 0) {
     current[idx].read = true;
     writeLocal(STORAGE_KEYS.NOTIFICATIONS, current);
+    emitSubscribers("notifications", current);
   }
 
   if (db) {

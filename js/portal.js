@@ -358,9 +358,17 @@ function setupRegistrationModal() {
         showRegistrationSuccess(result);
       } catch (err) {
         alert("Submission notice: " + err.message);
-        submitBtn.textContent = "Submit Application & Documents";
+        submitBtn.textContent = "Submit Application & Upload Dossier ↗";
         submitBtn.disabled = false;
       }
+    });
+  }
+
+  // Backdrop dismiss
+  const regModal = document.getElementById("regModal");
+  if (regModal) {
+    regModal.addEventListener("click", (e) => {
+      if (e.target === regModal) window.closeRegistrationModal();
     });
   }
 }
@@ -438,6 +446,14 @@ function setupDetailsModal() {
 
   if (hotspot) hotspot.addEventListener("click", openHotspot);
   if (hotspotLabel) hotspotLabel.addEventListener("click", openHotspot);
+
+  // Backdrop dismiss
+  const modal = document.getElementById("vehicleDetailsModal");
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) window.closeDetailsModal();
+    });
+  }
 }
 
 window.closeDetailsModal = () => {

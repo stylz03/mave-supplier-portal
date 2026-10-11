@@ -10,12 +10,14 @@ import {
   onTiersSnapshot,
   saveTier,
   deleteTier,
+  seedDefaultTiers,
   onSubmissionsSnapshot,
   updateSubmission,
   submitSupplierRegistration,
   onNotificationsSnapshot,
   markNotificationRead,
   setFirebaseApiKey,
+  getIsConnected,
   DEFAULT_PAGE_CONTENT,
   DEFAULT_TIERS
 } from "./firebase-client.js";
@@ -41,6 +43,26 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTierForm();
   setupNotificationCenter();
   setupSeedDemo();
+
+  function updateBackendBadge() {
+    const badge = document.getElementById("backendBadge");
+    if (!badge) return;
+    if (getIsConnected()) {
+      badge.className = "cms-badge badge-backend";
+      badge.textContent = "mave-invest-prod";
+      badge.style.background = "";
+      badge.style.color = "";
+      badge.style.border = "";
+    } else {
+      badge.className = "cms-badge";
+      badge.style.background = "rgba(224, 159, 62, 0.15)";
+      badge.style.color = "#fbbf24";
+      badge.style.border = "1px solid rgba(251, 191, 36, 0.3)";
+      badge.textContent = "Local Storage (Offline/Demo)";
+    }
+  }
+  updateBackendBadge();
+  setInterval(updateBackendBadge, 3000);
 
   // 1. Subscribe to Page Content
   onSiteContentSnapshot((content) => {
@@ -356,9 +378,11 @@ window.openDossierModal = (sub) => {
   document.getElementById("dossierRegNo").textContent = sub.registrationNumber || "Not specified";
   document.getElementById("dossierCountry").textContent = sub.country || "—";
   document.getElementById("dossierContact").textContent = `${sub.contactName || "—"} (${sub.contactRole || "Contact"})`;
+  const emailEsc = escapeHtml(sub.contactEmail || "");
+  const phoneEsc = escapeHtml(sub.contactPhone || "");
   document.getElementById("dossierContactDetails").innerHTML = `
-    <a href="mailto:${sub.contactEmail}" style="color: var(--gold); text-decoration: underline;">${sub.contactEmail}</a> 
-    ${sub.contactPhone ? `<span style="color: var(--ink-faint);">| ${sub.contactPhone}</span>` : ""}
+    ${emailEsc ? `<a href="mailto:${emailEsc}" style="color: var(--gold); text-decoration: underline;">${emailEsc}</a>` : ""} 
+    ${phoneEsc ? `<span style="color: var(--ink-faint);">| ${phoneEsc}</span>` : ""}
   `;
   document.getElementById("dossierCategory").textContent = sub.primaryCategory || "Automotive Component Fabrication";
   document.getElementById("dossierSelectedTier").textContent = getTierLabel(sub.selectedTier);
@@ -375,7 +399,13 @@ window.openDossierModal = (sub) => {
   } else {
     docsList.innerHTML = docs
       .map(
-        (doc, i) => `
+        (doc, i) => {
+          const isData = (doc.url || "").startsWith("data:");
+          const downloadAttr = isData
+            ? `download="${escapeHtml(doc.name || `Document_${i + 1}.pdf`)}"`
+            : `target="_blank" rel="noopener noreferrer"`;
+
+          return `
       <div class="doc-item">
         <div class="doc-info">
           <span class="doc-icon">📄</span>
@@ -385,12 +415,13 @@ window.openDossierModal = (sub) => {
           </div>
         </div>
         <div style="display: flex; gap: 8px;">
-          <a href="${doc.url || "#"}" target="_blank" class="cms-btn cms-btn-outline" style="padding: 6px 12px; font-size: 11px;">
+          <a href="${doc.url || "#"}" ${downloadAttr} class="cms-btn cms-btn-outline" style="padding: 6px 12px; font-size: 11px;">
             View / Download ↗
           </a>
         </div>
       </div>
-    `
+    `;
+        }
       )
       .join("");
   }
@@ -454,6 +485,21 @@ function setupModals() {
         saveEvalBtn.textContent = "Save Evaluation & Assign Tier";
         saveEvalBtn.disabled = false;
       }
+    });
+  }
+
+  // Backdrop dismiss
+  const dossierModal = document.getElementById("dossierModal");
+  if (dossierModal) {
+    dossierModal.addEventListener("click", (e) => {
+      if (e.target === dossierModal) closeDossierModal();
+    });
+  }
+
+  const tierModal = document.getElementById("tierEditModal");
+  if (tierModal) {
+    tierModal.addEventListener("click", (e) => {
+      if (e.target === tierModal) window.closeTierEditModal();
     });
   }
 }
@@ -741,7 +787,8 @@ function setupContentForm() {
     resetBtn.addEventListener("click", async () => {
       if (confirm("Reset portal content and tiers to factory defaults?")) {
         await saveSiteContent(DEFAULT_PAGE_CONTENT);
-        showToast("Reset to defaults complete.");
+        await seedDefaultTiers();
+        showToast("Reset to factory defaults complete.");
       }
     });
   }
@@ -911,14 +958,22 @@ function formatFileSize(bytes) {
 function formatDate(iso) {
   if (!iso) return "Just now";
   try {
-    const d = new Date(iso);
+    let d;
+    if (typeof iso === "object" && typeof iso.toDate === "function") {
+      d = iso.toDate();
+    } else if (typeof iso === "object" && iso.seconds) {
+      d = new Date(iso.seconds * 1000);
+    } else {
+      d = new Date(iso);
+    }
+    if (isNaN(d.getTime())) return "Recent";
     return d.toLocaleDateString("en-ZA", {
       day: "2-digit",
       month: "short",
       year: "numeric"
     });
   } catch (e) {
-    return iso;
+    return "Recent";
   }
 }
 

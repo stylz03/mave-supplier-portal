@@ -585,3 +585,214 @@
     flex-direction: column;
   }
 }
+
+/* ============================================================
+   SHARED FORM CONTROLS (PORTAL REGISTRATION)
+   ============================================================ */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  background: #100b07;
+  border: 1px solid rgba(207, 143, 69, 0.25);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(207, 143, 69, 0.2);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   SHARED MODAL & DOCUMENT INSPECTION (EXPLODED ARCHITECTURE)
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 7, 5, 0.88);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-box {
+  background: #140e09;
+  border: 1px solid rgba(207, 143, 69, 0.3);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 780px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(207, 143, 69, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid rgba(207, 143, 69, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #100b07;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+  color: var(--gold);
+}
+
+.modal-body {
+  padding: 28px;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 20px 28px;
+  border-top: 1px solid rgba(207, 143, 69, 0.2);
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  background: #100b07;
+}
+
+.doc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(207, 143, 69, 0.04);
+  border: 1px solid rgba(207, 143, 69, 0.18);
+  border-radius: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.doc-item:hover {
+  border-color: rgba(207, 143, 69, 0.4);
+}
+
+.doc-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.doc-icon {
+  font-size: 20px;
+}
+
+.doc-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.doc-meta {
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+/* Button styles matching executive brand */
+.cms-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+.cms-btn-gold {
+  background: var(--gold);
+  color: #0a0705;
+  border-color: var(--gold);
+}
+
+.cms-btn-gold:hover {
+  background: #deb06c;
+  box-shadow: 0 0 16px rgba(207, 143, 69, 0.35);
+}
+
+.cms-btn-outline {
+  background: transparent;
+  color: var(--ink-dim);
+  border-color: rgba(207, 143, 69, 0.3);
+}
+
+.cms-btn-outline:hover {
+  color: var(--ink);
+  border-color: var(--gold);
+  background: rgba(207, 143, 69, 0.08);
+}
+
