@@ -6,6 +6,8 @@
 !.env.example
 *.key
 secrets.json
+firebase-config.json
+js/config.local.js
 
 # Generated / working assets
 tools/node_modules/

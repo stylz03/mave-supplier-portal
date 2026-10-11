@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MUREZA / MAVE — Supplier Portal CMS & Administration</title>
+  <link rel="icon" href="assets/brand/favicon-mave.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/cms.css?v=2">
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="cms-header">
+    <div class="cms-brand">
+      <img src="assets/brand/mave_logo.png" alt="MAVE" class="cms-logo">
+      <div class="cms-title-badge">
+        <span class="cms-title">Supplier Management CMS</span>
+        <span class="cms-badge badge-backend" id="backendBadge">mave-invest-prod</span>
+      </div>
+    </div>
+
+    <div class="cms-actions">
+      <!-- Notification Bell -->
+      <button class="notif-bell-btn" id="notifBellBtn" title="Incoming notifications">
+        🔔 <span class="notif-count-pill" id="notifCountPill">0</span>
+      </button>
+
+      <!-- View Live Portal -->
+      <a href="index.html" class="cms-btn cms-btn-outline" target="_blank">
+        Live Portal ↗
+      </a>
+      
+      <!-- Quick Demo Seed -->
+      <button class="cms-btn cms-btn-gold" id="seedDemoBtn">
+        + Seed Test Application
+      </button>
+    </div>
+
+    <!-- Notifications Dropdown -->
+    <div class="notif-dropdown" id="notifDropdown">
+      <div class="notif-dropdown-header">
+        <span class="notif-dropdown-title">Recent Activity</span>
+        <button class="cms-btn cms-btn-outline" style="padding: 4px 8px; font-size: 10px;" id="markAllReadBtn">Clear</button>
+      </div>
+      <div class="notif-list" id="notifList">
+        <div style="padding: 20px; text-align: center; color: var(--ink-faint); font-size: 12px;">No unread notifications</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Body Layout -->
+  <div class="cms-container">
+    <!-- Sidebar -->
+    <aside class="cms-sidebar">
+      <div class="cms-nav-item active" data-tab="tab-overview">
+        <span>📊</span> Dashboard Overview
+      </div>
+      <div class="cms-nav-item" data-tab="tab-submissions">
+        <span>🏢</span> Supplier Applications
+        <span class="cms-nav-badge" id="pendingBadge">0</span>
+      </div>
+      <div class="cms-nav-item" data-tab="tab-tiers">
+        <span>🏷️</span> Tiers &amp; Pricing
+      </div>
+      <div class="cms-nav-item" data-tab="tab-content">
+        <span>✏️</span> Page Content CMS
+      </div>
+      <div class="cms-nav-item" data-tab="tab-notifications">
+        <span>🔔</span> Notifications
+      </div>
+      <div class="cms-nav-item" data-tab="tab-settings">
+        <span>⚙️</span> Backend &amp; Integration
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="cms-main">
+
+      <!-- ============================================================ -->
+      <!-- TAB 1: OVERVIEW -->
+      <!-- ============================================================ -->
+      <section class="cms-tab-content active" id="tab-overview">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">EXECUTIVE DASHBOARD</p>
+            <h1 class="section-title">Continental Supplier Network</h1>
+            <p class="section-desc">Real-time pipeline monitoring, tier assignment, and localization progress.</p>
+          </div>
+          <button class="cms-btn cms-btn-gold" onclick="document.querySelector('[data-tab=\'tab-submissions\']').click()">
+            Review New Dossiers
+          </button>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <p class="metric-label">Total Applications</p>
+            <p class="metric-value" id="statTotalApps">0</p>
+            <p class="metric-sub">Registered African suppliers</p>
+          </div>
+          <div class="metric-card">
+            <p class="metric-label">Pending Review</p>
+            <p class="metric-value" style="color: var(--warning);" id="statPendingApps">0</p>
+            <p class="metric-sub">Awaiting document inspection</p>
+          </div>
+          <div class="metric-card">
+            <p class="metric-label">Approved Suppliers</p>
+            <p class="metric-value" style="color: var(--success);" id="statApprovedApps">0</p>
+            <p class="metric-sub">Certified for OEM manufacturing</p>
+          </div>
+          <div class="metric-card">
+            <p class="metric-label">Network Capacity</p>
+            <p class="metric-value" style="color: var(--gold);" id="statCapacityFilled">0 / 50</p>
+            <p class="metric-sub">Target: 50 Qualified Partners</p>
+          </div>
+        </div>
+
+        <!-- Recent Submissions Table -->
+        <div class="content-card">
+          <div class="content-card-title">
+            <span>Recent Supplier Submissions</span>
+            <button class="cms-btn cms-btn-outline" style="padding: 6px 12px; font-size: 11px;" onclick="document.querySelector('[data-tab=\'tab-submissions\']').click()">
+              View All Pipeline →
+            </button>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Country</th>
+                  <th>Selected Tier</th>
+                  <th>Assigned Tier</th>
+                  <th>Status</th>
+                  <th>Docs</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="overviewRecentTable">
+                <tr>
+                  <td colspan="8" style="text-align: center; color: var(--ink-faint); padding: 30px;">
+                    No supplier submissions yet. Click "+ Seed Test Application" above to test.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 2: SUPPLIER APPLICATIONS & REVIEW (CORE USER REQUIREMENT) -->
+      <!-- ============================================================ -->
+      <section class="cms-tab-content" id="tab-submissions">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">APPLICATION REVIEW PIPELINE</p>
+            <h1 class="section-title">Supplier Registrations &amp; Profiles</h1>
+            <p class="section-desc">Review submitted company documents, inspect qualifications, and assign tiers.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="submissionSearchInput" class="form-input" placeholder="Search company, country, contact..." style="width: 260px;">
+          </div>
+        </div>
+
+        <!-- Filter tabs -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+          <button class="cms-btn cms-btn-gold sub-filter-btn" data-filter="all">All (<span id="countFilterAll">0</span>)</button>
+          <button class="cms-btn cms-btn-outline sub-filter-btn" data-filter="pending">Pending (<span id="countFilterPending">0</span>)</button>
+          <button class="cms-btn cms-btn-outline sub-filter-btn" data-filter="under_review">Under Review (<span id="countFilterReview">0</span>)</button>
+          <button class="cms-btn cms-btn-outline sub-filter-btn" data-filter="tier_assigned">Tier Assigned (<span id="countFilterTier">0</span>)</button>
+          <button class="cms-btn cms-btn-outline sub-filter-btn" data-filter="approved">Approved (<span id="countFilterApproved">0</span>)</button>
+          <button class="cms-btn cms-btn-outline sub-filter-btn" data-filter="declined">Declined (<span id="countFilterDeclined">0</span>)</button>
+        </div>
+
+        <div class="content-card" style="padding: 0; overflow: hidden;">
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tracking #</th>
+                  <th>Company Profile</th>
+                  <th>Primary Contact</th>
+                  <th>Country</th>
+                  <th>Applied Tier</th>
+                  <th>Assigned Tier</th>
+                  <th>Status</th>
+                  <th>Documents</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="allSubmissionsTable">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 3: TIERS & PRICING MANAGEMENT (CORE USER REQUIREMENT) -->
+      <!-- ============================================================ -->
+      <section class="cms-tab-content" id="tab-tiers">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">NETWORK ARCHITECTURE</p>
+            <h1 class="section-title">Tiers, Capacity &amp; Registration Pricing</h1>
+            <p class="section-desc">Create tiers, adjust slot quotas, and configure qualification fees across the supply chain.</p>
+          </div>
+          <button class="cms-btn cms-btn-gold" id="addNewTierBtn">
+            + Create New Tier
+          </button>
+        </div>
+
+        <!-- Grid of Tiers -->
+        <div class="tiers-grid" id="tiersAdminGrid">
+          <!-- Injected via JS -->
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 4: PAGE CONTENT CMS (CORE USER REQUIREMENT) -->
+      <!-- ============================================================ -->
+      <section class="cms-tab-content" id="tab-content">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">SITE CONTENT MANAGER</p>
+            <h1 class="section-title">Portal Copy &amp; Brand Messaging</h1>
+            <p class="section-desc">Edit hero headlines, taglines, AfCFTA narrative, and continental statistics.</p>
+          </div>
+          <button class="cms-btn cms-btn-gold" id="saveContentBtn">
+            Publish All Content Changes
+          </button>
+        </div>
+
+        <div class="content-card">
+          <div class="content-card-title">
+            <span>Hero Stage Typography</span>
+            <span style="font-size: 11px; color: var(--gold);">Live on https://sales.mave.africa / Supplier Portal</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Giant Display Word (Background)</label>
+              <input type="text" class="form-input" id="fieldDisplayWord" value="PARTNERS">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Hero Kicker</label>
+              <input type="text" class="form-input" id="fieldKicker" value="01 / STRATEGIC PARTNERS">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Main Headline</label>
+              <input type="text" class="form-input" id="fieldHeadline" value="BUILDING THE FUTURE.">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Brand Subtitle (Header)</label>
+              <input type="text" class="form-input" id="fieldBrandName" value="SUPPLIER PORTAL">
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label">Hero Tagline</label>
+              <textarea class="form-textarea" id="fieldTagline">A sovereign supply chain for African mobility.</textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="content-card-title">
+            <span>Continental Industrialization &amp; AfCFTA Overview</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Overview Section Kicker</label>
+              <input type="text" class="form-input" id="fieldOverviewKicker" value="02 / CONTINENTAL INDUSTRIALIZATION">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Overview Headline</label>
+              <input type="text" class="form-input" id="fieldOverviewHeadline" value="TRANSFORMING AFRICAN MOBILITY FROM THE GROUND UP.">
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label">Overview Narrative Body</label>
+              <textarea class="form-textarea" id="fieldOverviewBody" style="min-height: 110px;">MUREZA is catalyzing a pan-African automotive component manufacturing ecosystem under the AfCFTA framework. We are onboarding 50 Tier 1, 2, 3, Technology, and Infrastructure partners to build localized electric and ICE commercial vehicles with up to 60% domestic African value addition.</textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="content-card-title">
+            <span>Strategic Pillars</span>
+          </div>
+
+          <div class="form-grid" id="pillarsEditGrid">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="content-card-title">
+            <span>Contact &amp; Support Info</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Contact Email</label>
+              <input type="email" class="form-input" id="fieldContactEmail" value="suppliers@mave.africa">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contact Telephone</label>
+              <input type="text" class="form-input" id="fieldContactPhone" value="+27 (0) 11 568 9300">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 5: NOTIFICATIONS CENTER -->
+      <!-- ============================================================ -->
+      <section class="cms-tab-content" id="tab-notifications">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">COMMUNICATION AUDIT</p>
+            <h1 class="section-title">Notification &amp; Activity Log</h1>
+            <p class="section-desc">Audit trail of all incoming applicant submissions and reviews.</p>
+          </div>
+        </div>
+
+        <div class="content-card" style="padding: 0;">
+          <div id="fullNotifList" class="notif-list" style="max-height: none;">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB 6: BACKEND & SETTINGS -->
+      <!-- ============================================================ -->
+      <section class="cms-tab-content" id="tab-settings">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">INFRASTRUCTURE STATUS</p>
+            <h1 class="section-title">Backend &amp; Cloud Connection</h1>
+            <p class="section-desc">Unified Firebase configuration matching the MAVE ecosystem.</p>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="content-card-title">
+            <span>Connected Services (mave-invest-prod)</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="doc-item">
+              <div class="doc-info">
+                <span class="doc-icon">🔥</span>
+                <div>
+                  <div class="doc-name">Cloud Firestore</div>
+                  <div class="doc-meta">Collections: supplierPortal, supplierTiers, supplierSubmissions, supplierNotifications</div>
+                </div>
+              </div>
+              <span class="status-pill status-approved">ACTIVE</span>
+            </div>
+
+            <div class="doc-item">
+              <div class="doc-info">
+                <span class="doc-icon">📦</span>
+                <div>
+                  <div class="doc-name">Cloud Storage Bucket</div>
+                  <div class="doc-meta">gs://mave-invest-prod.firebasestorage.app/supplier-documents/</div>
+                </div>
+              </div>
+              <span class="status-pill status-approved">ACTIVE</span>
+            </div>
+
+            <div class="doc-item">
+              <div class="doc-info">
+                <span class="doc-icon">🛡️</span>
+                <div>
+                  <div class="doc-name">Local State Cache &amp; Fallback Engine</div>
+                  <div class="doc-meta">Zero-downtime offline resilience active</div>
+                </div>
+              </div>
+              <span class="status-pill status-approved">SYNCHRONIZED</span>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
+            <label class="form-label">Firebase Client API Key</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="password" class="form-input" id="cfgApiKeyInput" placeholder="Enter / update Firebase API key if not loaded via config..." style="flex: 1;">
+              <button class="cms-btn cms-btn-gold" id="saveApiKeyBtn">Save Key</button>
+            </div>
+            <p style="font-size: 11px; color: var(--ink-faint); margin-top: 6px;">
+              Stored securely in local browser storage and loaded via gitignored config. Never committed to public version control.
+            </p>
+          </div>
+
+          <div style="margin-top: 24px; display: flex; gap: 12px;">
+            <button class="cms-btn cms-btn-outline" id="resetDefaultsBtn">Reset CMS to Factory Defaults</button>
+            <button class="cms-btn cms-btn-outline" id="exportDataBtn">Export All Data (JSON)</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: REVIEW DOSSIER & ASSIGN TIER (CORE USER REQUIREMENT) -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="dossierModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <span class="section-kicker" id="dossierTrackingCode">MVR-2026-0000</span>
+          <h2 class="modal-title" id="dossierCompanyName">Company Profile Dossier</h2>
+        </div>
+        <button class="modal-close" onclick="closeDossierModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Company Profile summary -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+          <div>
+            <p class="form-label">Registration / Tax ID</p>
+            <p id="dossierRegNo" style="font-size: 14px; font-weight: 600; color: var(--ink);">—</p>
+          </div>
+          <div>
+            <p class="form-label">Country / Location</p>
+            <p id="dossierCountry" style="font-size: 14px; font-weight: 600; color: var(--ink);">—</p>
+          </div>
+          <div>
+            <p class="form-label">Primary Contact</p>
+            <p id="dossierContact" style="font-size: 14px; color: var(--ink);">—</p>
+          </div>
+          <div>
+            <p class="form-label">Contact Email &amp; Phone</p>
+            <p id="dossierContactDetails" style="font-size: 14px; color: var(--ink);">—</p>
+          </div>
+          <div>
+            <p class="form-label">Primary Manufacturing Category</p>
+            <p id="dossierCategory" style="font-size: 14px; color: var(--gold); font-weight: 600;">—</p>
+          </div>
+          <div>
+            <p class="form-label">Applicant Selected Tier</p>
+            <p id="dossierSelectedTier" style="font-size: 14px; font-weight: 600;">—</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <p class="form-label">Capability Statement &amp; Experience</p>
+          <p id="dossierCapability" style="font-size: 13px; color: var(--ink-dim); background: rgba(14, 10, 7, 0.4); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); line-height: 1.5;">
+            —
+          </p>
+        </div>
+
+        <!-- Submitted Company Documents -->
+        <div style="margin-bottom: 24px;">
+          <p class="form-label" style="display: flex; justify-content: space-between;">
+            <span>Submitted Company Profile Documents &amp; Certificates</span>
+            <span style="color: var(--gold);" id="dossierDocCount">0 Files</span>
+          </p>
+          <div class="docs-list" id="dossierDocsList">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <!-- Evaluation & Tier Assignment -->
+        <div style="background: rgba(207, 143, 69, 0.05); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius-sm);">
+          <h4 style="font-size: 14px; color: var(--gold); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.08em;">
+            Review Decision &amp; Tier Assignment
+          </h4>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Assign To Tier</label>
+              <select class="form-select" id="dossierAssignTierSelect">
+                <!-- Dynamically populated from active tiers -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Application Status</label>
+              <select class="form-select" id="dossierStatusSelect">
+                <option value="pending">Pending Review</option>
+                <option value="under_review">Under Review</option>
+                <option value="tier_assigned">Tier Assigned</option>
+                <option value="approved">Approved</option>
+                <option value="declined">Declined</option>
+              </select>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label">Reviewer Notes &amp; Feedback (Applicant will see this)</label>
+              <textarea class="form-textarea" id="dossierNotesInput" placeholder="Add evaluation findings, certification prerequisites, or next steps..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="cms-btn cms-btn-outline" onclick="closeDossierModal()">Cancel</button>
+        <button class="cms-btn cms-btn-gold" id="saveDossierEvaluationBtn">
+          Save Evaluation &amp; Assign Tier
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: CREATE / EDIT TIER -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="tierEditModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 class="modal-title" id="tierModalTitle">Create / Edit Tier</h2>
+        <button class="modal-close" onclick="closeTierModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="editTierId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Tier Code / Name</label>
+            <input type="text" class="form-input" id="tierEditCode" placeholder="e.g. TIER 1">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Subtitle / Sub-category</label>
+            <input type="text" class="form-input" id="tierEditSub" placeholder="e.g. MAJOR SYSTEMS">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Partner Quota / Capacity</label>
+            <input type="number" class="form-input" id="tierEditCapacity" value="10" min="1">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Currently Filled Slots</label>
+            <input type="number" class="form-input" id="tierEditFilled" value="0" min="0">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Registration Fee (Amount)</label>
+            <input type="number" class="form-input" id="tierEditFeeAmount" value="30000" min="0">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Fee Currency</label>
+            <select class="form-select" id="tierEditCurrency">
+              <option value="ZAR">ZAR (South African Rand)</option>
+              <option value="USD">USD (US Dollars)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Fee Frequency / Terms</label>
+            <input type="text" class="form-input" id="tierEditFeeFrequency" value="Once-off Qualification Fee">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Accent Color</label>
+            <input type="color" class="form-input" id="tierEditColor" value="#cf8f45" style="height: 42px; padding: 2px;">
+          </div>
+
+          <div class="form-group full-width">
+            <label class="form-label">Focus Areas / Deliverables (One per line)</label>
+            <textarea class="form-textarea" id="tierEditFocus" placeholder="Body panels&#10;Powertrain systems&#10;Electrical architecture"></textarea>
+          </div>
+
+          <div class="form-group full-width">
+            <label class="form-label">Qualification Requirements</label>
+            <input type="text" class="form-input" id="tierEditRequirements" placeholder="e.g. ISO 9001 / IATF 16949 certification or readiness">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="cms-btn cms-btn-outline" onclick="closeTierModal()">Cancel</button>
+        <button class="cms-btn cms-btn-gold" id="saveTierBtn">Save Tier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script type="module" src="js/cms.js?v=2"></script>
+</body>
+</html>

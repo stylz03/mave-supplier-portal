@@ -34,6 +34,7 @@ http
   .createServer((req, res) => {
     let rel = decodeURIComponent(req.url.split("?")[0]);
     if (rel === "/") rel = "/index.html";
+    if (rel === "/cms" || rel === "/admin") rel = "/cms.html";
 
     const file = path.join(ROOT, rel);
     /* path.join normalises separators, so compare against the resolved

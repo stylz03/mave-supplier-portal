@@ -8,143 +8,474 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=15">
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=16">
+  <link rel="stylesheet" href="css/portal-sections.css?v=2">
 </head>
 <body>
-  <main class="stage">
 
-    <!-- 1. Background plate — first frame of the film, so the static
-         hero and the scrubbed sequence are the same image -->
-    <img class="bg" src="assets/film-van/frame_0001.jpg" alt="">
+  <!-- ============================================================ -->
+  <!-- HERO CONTAINER & PINNED SCROLL DISASSEMBLY STAGE -->
+  <!-- ============================================================ -->
+  <div class="hero-container" id="heroContainer">
+    <main class="stage">
 
-    <!-- 2. Giant outline display word -->
-    <h1 class="display-word">PARTNERS</h1>
+      <!-- 1. Background plate — first frame of the film -->
+      <img class="bg" src="assets/film-van/frame_0001.jpg" alt="MUREZA Villager EV">
 
-    <!-- 3. (No separate car cutout: the van film frames are full-frame
-         composites, so the background plate above already shows the
-         vehicle. scroll-film.js tolerates a missing .car-layer.) -->
+      <!-- 2. Giant outline display word (synced with CMS) -->
+      <h1 class="display-word">PARTNERS</h1>
 
-    <!-- 3b. Scroll-driven dismantling film (canvas sits above word + car, below UI) -->
-    <canvas class="film" id="film" aria-hidden="true"
-            data-frames="240" data-dir="assets/film-van/"
-            data-prefix="frame_" data-ext=".jpg"></canvas>
+      <!-- 3b. Scroll-driven dismantling film (240 frames scrubbed) -->
+      <canvas class="film" id="film" aria-hidden="true"
+              data-frames="240" data-dir="assets/film-van/"
+              data-prefix="frame_" data-ext=".jpg"></canvas>
 
-    <!-- 3c. display word repeated above the film so it stays visible while scrolling -->
-    <p class="display-word display-word--front" id="wordFront" aria-hidden="true">PARTNERS</p>
+      <!-- 3c. display word repeated above film for depth effect -->
+      <p class="display-word display-word--front" id="wordFront" aria-hidden="true">PARTNERS</p>
 
-    <!-- 4. UI layer -->
-    <header>
-      <!-- MAVE wordmark, @4x from mave.africa (332x54) — the largest
-           raster the brand publishes. Sized well below native so it
-           stays sharp on hi-dpi screens. -->
-      <a class="logo" href="https://mave.africa/" aria-label="MAVE — home">
-        <img src="assets/brand/mave_logo.png" alt="MAVE" width="332" height="54">
-      </a>
+      <!-- 4. UI Layer -->
+      <header>
+        <a class="logo" href="https://mave.africa/" aria-label="MAVE — home">
+          <img src="assets/brand/mave_logo.png" alt="MAVE" width="332" height="54">
+        </a>
 
-      <!-- Descriptor line lives in the hero tagline, not here: at 1440 the
-           full "PAN-AFRICAN AUTOMOTIVE SUPPLY CHAIN" ran 261px and collided
-           with the nav. Wordmark + section name is the cleaner lockup. -->
-      <div class="brand">
-        <p class="brand-name">SUPPLIER PORTAL</p>
+        <div class="brand">
+          <p class="brand-name">SUPPLIER PORTAL</p>
+        </div>
+
+        <nav aria-label="Primary">
+          <a href="#strategic-section" class="nav-link nav-services">OVERVIEW</a>
+          <a href="#tiers-section" class="nav-link nav-performance">PARTNERS</a>
+          <a href="#strategic-section" class="nav-link nav-atelier">INFRASTRUCTURE</a>
+          <a href="#tracking-section" class="nav-link nav-journal">TRACKING</a>
+          <a href="cms.html" class="nav-link" style="color: var(--gold);" target="_blank">CMS ↗</a>
+        </nav>
+
+        <a href="#regModal" class="cta" onclick="window.openRegistrationForTier()">
+          JOIN NETWORK&nbsp;&nbsp;<span class="cta-arrow">&#8599;</span>
+        </a>
+      </header>
+
+      <!-- Left text block (reactive to CMS) -->
+      <section class="left-block" aria-label="Strategic partners">
+        <span class="left-rule" aria-hidden="true"></span>
+        <p class="kicker">01 / STRATEGIC PARTNERS</p>
+        <h2 class="headline">BUILDING THE FUTURE.</h2>
+        <p class="tagline">A sovereign supply chain for African mobility.</p>
+      </section>
+
+      <!-- Right vertical rail -->
+      <aside class="rail" aria-label="Model rail">
+        <p class="rail-vertical">— MUREZA — OEM PARTNER</p>
+        <p class="rail-count"><span class="rail-current">01</span> <span class="rail-total">/ 04</span></p>
+      </aside>
+
+      <!-- INSPECT hotspot (click to view exploded vehicle component breakdown) -->
+      <div class="hotspot" aria-hidden="true" title="View exploded vehicle components"></div>
+      <p class="hotspot-label" title="View exploded vehicle components">DETAILS</p>
+
+      <!-- Bottom glassy service bar (dynamically populated from CMS Tiers) -->
+      <section class="service-bar" aria-label="Tiers">
+        <!-- Rendered dynamically by js/portal.js with fallback defaults -->
+        <div class="service service-1" onclick="window.scrollToTier('tier-1')">
+          <span class="num">12</span>
+          <span class="stack">
+            <span class="s-title">TIER 1</span>
+            <span class="s-sub gold">MAJOR SYSTEMS</span>
+          </span>
+        </div>
+        <div class="service service-2" onclick="window.scrollToTier('tier-2')">
+          <span class="num">10</span>
+          <span class="stack">
+            <span class="s-title">TIER 2</span>
+            <span class="s-sub">PROCESSING</span>
+          </span>
+        </div>
+        <div class="service service-3" onclick="window.scrollToTier('tier-3')">
+          <span class="num">10</span>
+          <span class="stack">
+            <span class="s-title">TIER 3</span>
+            <span class="s-sub">RAW MATERIALS</span>
+          </span>
+        </div>
+        <div class="service service-4" onclick="window.scrollToTier('services')">
+          <span class="num">10</span>
+          <span class="stack">
+            <span class="s-title">SERVICES</span>
+            <span class="s-sub">TECH &amp; DESIGN</span>
+          </span>
+        </div>
+        <div class="service service-5" onclick="window.scrollToTier('infra')">
+          <span class="num">08</span>
+          <span class="stack">
+            <span class="s-title">INFRA.</span>
+            <span class="s-sub">SEZ &amp; POWER</span>
+          </span>
+        </div>
+        <span class="sep sep-1" aria-hidden="true"></span>
+        <span class="sep sep-2" aria-hidden="true"></span>
+        <span class="sep sep-3" aria-hidden="true"></span>
+        <span class="sep sep-4" aria-hidden="true"></span>
+        <span class="sep sep-5" aria-hidden="true"></span>
+        
+        <div class="total-suppliers" onclick="window.scrollToSection('tiers-section')">
+          <span class="tot-title">TOTAL</span>
+          <span class="tot-num">50</span>
+        </div>
+      </section>
+
+      <!-- Footer Explore CTA -->
+      <footer class="explore" onclick="window.scrollToSection('tiers-section')">
+        EXPLORE PROGRAM&nbsp;&nbsp;&#8595;
+      </footer>
+
+      <!-- Progress line -->
+      <div class="progress" aria-hidden="true">
+        <span class="track"></span>
+        <span class="done"></span>
+        <span class="gold-seg"></span>
       </div>
 
-      <nav aria-label="Primary">
-        <a href="#" class="nav-link nav-services">OVERVIEW</a>
-        <a href="#" class="nav-link nav-performance">PARTNERS</a>
-        <a href="#" class="nav-link nav-atelier">INFRASTRUCTURE</a>
-        <a href="#" class="nav-link nav-journal">ONBOARDING</a>
-      </nav>
+      <!-- Hairline frame -->
+      <div class="frame" aria-hidden="true"></div>
 
-      <a href="#" class="cta">JOIN NETWORK&nbsp;&nbsp;<span class="cta-arrow">&#8599;</span></a>
-    </header>
+    </main>
+  </div>
 
-    <!-- Left text block -->
-    <section class="left-block" aria-label="Strategic partners">
-      <span class="left-rule" aria-hidden="true"></span>
-      <p class="kicker">01 / STRATEGIC PARTNERS</p>
-      <h2 class="headline">BUILDING THE FUTURE.</h2>
-      <p class="tagline">A sovereign supply chain for African mobility.</p>
-    </section>
+  <!-- ============================================================ -->
+  <!-- PORTAL CONTENT: TIERS, PRICING, AfCFTA, REGISTRATION & TRACKING -->
+  <!-- ============================================================ -->
+  <section class="portal-content" id="portal-content">
+    <div class="portal-wrapper">
 
-    <!-- Right vertical rail -->
-    <aside class="rail" aria-label="Model rail">
-      <p class="rail-vertical">— MUREZA — OEM PARTNER</p>
-      <p class="rail-count"><span class="rail-current">01</span> <span class="rail-total">/ 04</span></p>
-    </aside>
-
-    <!-- INSPECT hotspot -->
-    <div class="hotspot" aria-hidden="true"></div>
-    <p class="hotspot-label">DETAILS</p>
-
-    <!-- Bottom glassy service bar -->
-    <section class="service-bar" aria-label="Tiers">
-      <div class="service service-1">
-        <span class="num">12</span>
-        <span class="stack">
-          <span class="s-title">TIER 1</span>
-          <span class="s-sub gold">MAJOR SYSTEMS</span>
-        </span>
+      <!-- 1. Tiers & Pricing Section (Core Requirement) -->
+      <div id="tiers-section" class="portal-section-head">
+        <p class="portal-kicker">01 / PAN-AFRICAN SUPPLY CHAIN</p>
+        <h2 class="portal-title">Automotive Manufacturing Tiers</h2>
+        <p class="portal-subtitle">
+          MUREZA is onboarding 50 certified suppliers across passenger and commercial vehicle platforms. 
+          Each tier features tailored capacity allocations, localized engineering scope, and structured qualification fees.
+        </p>
       </div>
-      <div class="service service-2">
-        <span class="num">10</span>
-        <span class="stack">
-          <span class="s-title">TIER 2</span>
-          <span class="s-sub">PROCESSING</span>
-        </span>
-      </div>
-      <div class="service service-3">
-        <span class="num">10</span>
-        <span class="stack">
-          <span class="s-title">TIER 3</span>
-          <span class="s-sub">RAW MATERIALS</span>
-        </span>
-      </div>
-      <div class="service service-4">
-        <span class="num">10</span>
-        <span class="stack">
-          <span class="s-title">SERVICES</span>
-          <span class="s-sub">TECH &amp; DESIGN</span>
-        </span>
-      </div>
-      <div class="service service-5">
-        <span class="num">08</span>
-        <span class="stack">
-          <span class="s-title">INFRA.</span>
-          <span class="s-sub">SEZ &amp; POWER</span>
-        </span>
-      </div>
-      <span class="sep sep-1" aria-hidden="true"></span>
-      <span class="sep sep-2" aria-hidden="true"></span>
-      <span class="sep sep-3" aria-hidden="true"></span>
-      <span class="sep sep-4" aria-hidden="true"></span>
-      <span class="sep sep-5" aria-hidden="true"></span>
-      
-      <div class="total-suppliers">
-        <span class="tot-title">TOTAL</span>
-        <span class="tot-num">50</span>
-      </div>
-    </section>
 
-    <!-- Footer -->
-    <footer class="explore">EXPLORE PROGRAM&nbsp;&nbsp;&#8595;</footer>
+      <!-- Dynamic Tiers Grid (Managed via CMS & Firestore) -->
+      <div class="portal-tiers-grid" id="portalTiersGrid">
+        <!-- Rendered dynamically by js/portal.js -->
+      </div>
 
-    <!-- Progress line -->
-    <div class="progress" aria-hidden="true">
-      <span class="track"></span>
-      <span class="done"></span>
-      <span class="gold-seg"></span>
+      <!-- 2. Strategic Context & AfCFTA Section (Managed via CMS) -->
+      <div id="strategic-section" class="portal-section-head">
+        <p class="portal-kicker" id="dynOverviewKicker">02 / CONTINENTAL INDUSTRIALIZATION</p>
+        <h2 class="portal-title" id="dynOverviewHeadline">TRANSFORMING AFRICAN MOBILITY FROM THE GROUND UP.</h2>
+        <p class="portal-subtitle" id="dynOverviewBody">
+          MUREZA is catalyzing a pan-African automotive component manufacturing ecosystem under the AfCFTA framework. 
+          We are onboarding 50 Tier 1, 2, 3, Technology, and Infrastructure partners to build localized electric and ICE commercial vehicles with up to 60% domestic African value addition.
+        </p>
+      </div>
+
+      <!-- Continental Impact Stats -->
+      <div class="stats-banner">
+        <div>
+          <div class="stats-banner-num">50</div>
+          <div class="stats-banner-label">Certified OEM Partners</div>
+        </div>
+        <div>
+          <div class="stats-banner-num">1.3B</div>
+          <div class="stats-banner-label">AfCFTA Market Reach</div>
+        </div>
+        <div>
+          <div class="stats-banner-num">60%</div>
+          <div class="stats-banner-label">Target Domestic Content</div>
+        </div>
+        <div>
+          <div class="stats-banner-num">3</div>
+          <div class="stats-banner-label">Continental SEZ Hubs</div>
+        </div>
+      </div>
+
+      <!-- 4 Strategic Pillars (Managed via CMS) -->
+      <div class="strategic-pillars-grid" id="strategicPillarsContainer">
+        <!-- Rendered dynamically by js/portal.js -->
+      </div>
+
+      <!-- 3. Application Tracking Section (Core Requirement) -->
+      <div id="tracking-section" class="tracking-box">
+        <span class="portal-kicker" style="justify-content: center;">03 / APPLICATION STATUS</span>
+        <h3 class="tracking-title">Track Your Supplier Dossier</h3>
+        <p class="tracking-desc">Enter your application tracking code (e.g. MVR-2026-XXXX) or registered company email to check your review status and assigned tier.</p>
+        
+        <form class="tracking-form" id="trackingSearchForm">
+          <input type="text" class="tracking-input" id="trackingSearchInput" placeholder="Enter tracking code (e.g. MVR-2026-4819)..." required>
+          <button type="submit" class="portal-tier-cta-btn" style="width: auto; padding: 12px 24px;">Check Status</button>
+        </form>
+
+        <div class="tracking-result-card" id="trackingResultCard">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
     </div>
 
-    <!-- Global hairline frame -->
-    <div class="frame" aria-hidden="true"></div>
+    <!-- Portal Footer -->
+    <footer class="portal-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <img src="assets/brand/mave_logo.png" alt="MAVE" width="120" style="opacity: 0.85;">
+          <span style="font-size: 11px; color: var(--ink-faint); letter-spacing: 0.1em; text-transform: uppercase;">
+            © 2026 MAVE / MUREZA OEM Group
+          </span>
+        </div>
 
-  </main>
+        <div class="footer-links">
+          <a href="#strategic-section">Overview</a>
+          <a href="#tiers-section">Tiers &amp; Pricing</a>
+          <a href="#tracking-section">Tracking</a>
+          <a href="cms.html" style="color: var(--gold); font-weight: 700;" target="_blank">⚙️ Admin CMS ↗</a>
+        </div>
 
-  <!-- Scroll runway for the film (the stage itself stays fixed) -->
-  <div class="scroll-space" aria-hidden="true"></div>
+        <div style="font-size: 12px; color: var(--ink-faint);">
+          Inquiries: <a href="mailto:suppliers@mave.africa" id="footerContactEmail" style="color: var(--gold);">suppliers@mave.africa</a>
+        </div>
+      </div>
+    </footer>
+  </section>
 
-  <script src="js/scroll-film.js?v=12" defer></script>
-  <script src="js/ui-motion.js?v=3" defer></script>
+  <!-- ============================================================ -->
+  <!-- MODAL: SUPPLIER REGISTRATION & DOCUMENT UPLOAD -->
+  <!-- ============================================================ -->
+  <div class="reg-modal-overlay" id="regModal">
+    <div class="reg-modal-box">
+      <div class="reg-modal-header">
+        <div>
+          <h2 class="reg-modal-title">Supplier Registration</h2>
+          <p class="reg-modal-sub">Submit company profile &amp; certification documents</p>
+        </div>
+        <button class="modal-close" onclick="closeRegistrationModal()">&times;</button>
+      </div>
+
+      <!-- Registration Form Screen -->
+      <div class="reg-modal-body" id="regFormScreen">
+        <form id="supplierRegForm">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label class="form-label">Registered Company Name *</label>
+              <input type="text" class="form-input" id="regCompanyName" placeholder="e.g. Apex Precision Stamping Ltd" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Company Registration / Tax ID *</label>
+              <input type="text" class="form-input" id="regRegNumber" placeholder="e.g. 2020/583921/07" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Country of Operation *</label>
+              <select class="form-select" id="regCountry" required>
+                <option value="South Africa">South Africa</option>
+                <option value="Kenya">Kenya</option>
+                <option value="Ethiopia">Ethiopia</option>
+                <option value="Nigeria">Nigeria</option>
+                <option value="Ghana">Ghana</option>
+                <option value="Egypt">Egypt</option>
+                <option value="Morocco">Morocco</option>
+                <option value="Botswana">Botswana</option>
+                <option value="Namibia">Namibia</option>
+                <option value="Zimbabwe">Zimbabwe</option>
+                <option value="Other African Nation">Other African Nation</option>
+                <option value="International / Global">International / Global</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Corporate Website / URL</label>
+              <input type="url" class="form-input" id="regWebsite" placeholder="https://">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Year Established</label>
+              <input type="number" class="form-input" id="regYear" value="2018" min="1950" max="2026">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Primary Contact Person *</label>
+              <input type="text" class="form-input" id="regContactName" placeholder="Full Name" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Job Title / Designation</label>
+              <input type="text" class="form-input" id="regContactRole" placeholder="e.g. Managing Director">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Direct Email Address *</label>
+              <input type="email" class="form-input" id="regContactEmail" placeholder="name@company.com" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Telephone / Mobile *</label>
+              <input type="tel" class="form-input" id="regContactPhone" placeholder="+27 ..." required>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label">Target Tier for Application *</label>
+              <select class="form-select" id="regTierSelect" required>
+                <!-- Populated dynamically from CMS Tiers -->
+              </select>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label">Primary Component / Manufacturing Category *</label>
+              <input type="text" class="form-input" id="regCategory" placeholder="e.g. EV Battery Packs, Chassis Stampings, Wiring Harnesses" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label">Manufacturing Capability &amp; Scale</label>
+              <textarea class="form-textarea" id="regCapability" placeholder="Summarize factory footprint, daily production capacity, major equipment, and quality accreditations..."></textarea>
+            </div>
+
+            <!-- Company Profile Document Upload (Core Requirement) -->
+            <div class="form-group full-width">
+              <label class="form-label">Upload Company Profile &amp; Certification Documents *</label>
+              <div class="dropzone" id="regDropzone">
+                <span class="dropzone-icon">📁</span>
+                <p class="dropzone-text">Click or drag &amp; drop your Company Profile (PDF, DOCX, ZIP)</p>
+                <p class="dropzone-hint">Include: Company Profile, Audited Financials, ISO/IATF certificates, or Capability Statement (Up to 25MB)</p>
+                <input type="file" id="regFileInput" style="display: none;" multiple accept=".pdf,.doc,.docx,.zip,.png,.jpg">
+              </div>
+              <div id="selectedFilesList"></div>
+            </div>
+
+            <!-- Registration Fee & Terms Banner -->
+            <div class="form-group full-width">
+              <div style="background: rgba(207, 143, 69, 0.08); border: 1px solid rgba(207, 143, 69, 0.25); padding: 14px 18px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-size: 11px; color: var(--ink-faint); text-transform: uppercase;">Tier Qualification Fee</div>
+                  <div style="font-size: 16px; font-weight: 700; color: var(--gold);" id="modalTierFeeDisplay">R 45,000 (Once-off)</div>
+                </div>
+                <span style="font-size: 11px; color: var(--ink-faint);">Fee payable upon qualification audit</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="reg-modal-footer" style="padding: 24px 0 0 0; border-top: none;">
+            <button type="button" class="cms-btn cms-btn-outline" onclick="closeRegistrationModal()">Cancel</button>
+            <button type="submit" class="portal-tier-cta-btn" id="regSubmitBtn" style="width: auto;">
+              Submit Application &amp; Upload Dossier &nbsp; ↗
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Success Screen -->
+      <div class="reg-modal-body success-screen" id="regSuccessScreen" style="display: none;">
+        <div class="success-badge">✓</div>
+        <h3 style="font-size: 22px; color: var(--ink); text-transform: uppercase; margin-bottom: 8px;">Application Received</h3>
+        <p style="font-size: 14px; color: var(--ink-dim); max-width: 500px; margin: 0 auto;">
+          Thank you, <strong id="successCompanyName" style="color: var(--ink);">Your Company</strong>. Your company profile and technical documents have been securely uploaded to the MUREZA supplier qualification queue.
+        </p>
+
+        <div style="margin: 24px 0;">
+          <p style="font-size: 11px; letter-spacing: 0.12em; color: var(--ink-faint); text-transform: uppercase;">Your Dossier Tracking Reference</p>
+          <div class="success-tracking-code" id="successTrackingCode">MVR-2026-0000</div>
+          <p style="font-size: 12px; color: var(--gold);">Applied Category: <span id="successTier">Tier 1</span></p>
+        </div>
+
+        <p style="font-size: 12px; color: var(--ink-faint); margin-bottom: 28px;">
+          The supplier development team will inspect your documentation and allocate your tier standing. You can track status anytime below.
+        </p>
+
+        <button class="cms-btn cms-btn-gold" onclick="closeRegistrationModal()" style="margin: 0 auto;">
+          Done &amp; Return to Portal
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: VEHICLE EXPLODED SYSTEMS (HOTSPOT DETAILS) -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="vehicleDetailsModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <span class="section-kicker">MUREZA VILLAGER EV</span>
+          <h2 class="modal-title">Exploded Vehicle Architecture</h2>
+        </div>
+        <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--ink-dim); line-height: 1.6; margin-bottom: 20px;">
+          The interactive dismantling sequence showcases the 240 localized components engineered for the MUREZA commercial and passenger vehicle lineup. Suppliers can register across 5 key systems:
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="doc-item">
+            <div class="doc-info">
+              <span class="doc-icon">⚡</span>
+              <div>
+                <div class="doc-name">1. High-Voltage Traction &amp; Powertrain (Tier 1)</div>
+                <div class="doc-meta">Integrated e-axles, BMS, inverter controllers, lithium-iron-phosphate battery packs</div>
+              </div>
+            </div>
+            <button class="cms-btn cms-btn-outline" style="font-size: 10px;" onclick="closeDetailsModal(); window.openRegistrationForTier('tier-1');">Apply</button>
+          </div>
+
+          <div class="doc-item">
+            <div class="doc-info">
+              <span class="doc-icon">🚗</span>
+              <div>
+                <div class="doc-name">2. Stamped Body Shell &amp; Outer Panels (Tier 1 &amp; 2)</div>
+                <div class="doc-meta">Monocoque chassis stampings, door assemblies, composites, aluminium closures</div>
+              </div>
+            </div>
+            <button class="cms-btn cms-btn-outline" style="font-size: 10px;" onclick="closeDetailsModal(); window.openRegistrationForTier('tier-1');">Apply</button>
+          </div>
+
+          <div class="doc-item">
+            <div class="doc-info">
+              <span class="doc-icon">🔌</span>
+              <div>
+                <div class="doc-name">3. Electrical Architecture &amp; Telematics (Tier 1 &amp; 2)</div>
+                <div class="doc-meta">Central vehicle ECU, 12V and HV wire harnesses, LED lighting, digital cluster</div>
+              </div>
+            </div>
+            <button class="cms-btn cms-btn-outline" style="font-size: 10px;" onclick="closeDetailsModal(); window.openRegistrationForTier('tier-2');">Apply</button>
+          </div>
+
+          <div class="doc-item">
+            <div class="doc-info">
+              <span class="doc-icon">🛋️</span>
+              <div>
+                <div class="doc-name">4. Cockpit, HVAC &amp; Interior Trim (Tier 1 &amp; 2)</div>
+                <div class="doc-meta">Ergonomic bus seating, climate control compressor, dash injection moldings, acoustic glass</div>
+              </div>
+            </div>
+            <button class="cms-btn cms-btn-outline" style="font-size: 10px;" onclick="closeDetailsModal(); window.openRegistrationForTier('tier-2');">Apply</button>
+          </div>
+
+          <div class="doc-item">
+            <div class="doc-info">
+              <span class="doc-icon">⚙️</span>
+              <div>
+                <div class="doc-name">5. Steering, Braking &amp; Suspension (Tier 1 &amp; 2)</div>
+                <div class="doc-meta">Regenerative ABS calipers, heavy-duty dampers, steering racks, wheels and tyres</div>
+              </div>
+            </div>
+            <button class="cms-btn cms-btn-outline" style="font-size: 10px;" onclick="closeDetailsModal(); window.openRegistrationForTier('tier-1');">Apply</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cms-btn cms-btn-gold" onclick="closeDetailsModal(); window.openRegistrationForTier();">
+          Join Supplier Network
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/scroll-film.js?v=13" defer></script>
+  <script src="js/ui-motion.js?v=4" defer></script>
+  <script type="module" src="js/portal.js?v=2"></script>
 </body>
 </html>

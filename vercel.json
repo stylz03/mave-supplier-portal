@@ -25,5 +25,9 @@
         { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
       ]
     }
+  ],
+  "rewrites": [
+    { "source": "/cms", "destination": "/cms.html" },
+    { "source": "/admin", "destination": "/cms.html" }
   ]
 }

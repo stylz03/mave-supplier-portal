@@ -102,8 +102,13 @@
     ctx.drawImage(img, dx, dy, dw, dh);
   }
 
-  const maxScroll = () =>
-    Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  const heroContainer = document.getElementById("heroContainer");
+  const maxScroll = () => {
+    if (heroContainer) {
+      return Math.max(1, heroContainer.offsetHeight - window.innerHeight);
+    }
+    return Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  };
 
   const smoothstep = (p) => p * p * (3 - 2 * p);
 

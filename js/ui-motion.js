@@ -115,8 +115,13 @@
   const RAIL_TOTAL = 4;
   const SEG = 18.9; // gold segment width, % of track (matches CSS)
 
-  const maxScroll = () =>
-    Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  const heroContainer = document.getElementById("heroContainer");
+  const maxScroll = () => {
+    if (heroContainer) {
+      return Math.max(1, heroContainer.offsetHeight - window.innerHeight);
+    }
+    return Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  };
 
   let lastRail = "";
 
