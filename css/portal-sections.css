@@ -9,13 +9,17 @@
   position: relative;
   height: 400vh;
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .stage {
   position: sticky !important;
   top: 0 !important;
   height: 100vh !important;
-  width: 100vw !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
   z-index: 10;
 }
 
@@ -49,12 +53,17 @@
   min-height: 100vh;
   box-shadow: 0 -30px 60px rgba(0, 0, 0, 0.9);
   border-top: 1px solid rgba(207, 143, 69, 0.3);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .portal-wrapper {
   max-width: 1360px;
+  width: 100%;
   margin: 0 auto;
   padding: 80px 32px 100px;
+  box-sizing: border-box;
 }
 
 /* Section Headers */
@@ -1100,6 +1109,100 @@
 .tender-deadline-val {
   color: #fbbf24;
   font-weight: 600;
+}
+
+/* ============================================================
+   RESPONSIVE MOBILE STYLES (SCREEN FIT & OVERFLOW PREVENTION)
+   ============================================================ */
+@media (max-width: 860px) {
+  .portal-wrapper {
+    padding: 36px 16px 80px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .portal-section-head {
+    margin-bottom: 32px !important;
+    width: 100% !important;
+  }
+
+  .portal-title {
+    font-size: clamp(24px, 6vw, 32px) !important;
+    line-height: 1.2 !important;
+    word-break: break-word !important;
+  }
+
+  .portal-subtitle {
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
+
+  .portal-tiers-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    margin-bottom: 48px !important;
+    width: 100% !important;
+  }
+
+  .portal-tier-card {
+    padding: 22px 18px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  .tenders-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    margin-bottom: 40px !important;
+    width: 100% !important;
+  }
+
+  .tender-card {
+    padding: 20px 16px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  .reg-modal-overlay,
+  .modal-overlay {
+    padding: 10px !important;
+    box-sizing: border-box !important;
+  }
+
+  .reg-modal-box,
+  .modal-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 94vh !important;
+    box-sizing: border-box !important;
+    border-radius: 8px !important;
+  }
+
+  .reg-modal-header,
+  .reg-modal-body,
+  .reg-modal-footer,
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 16px 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  .track-search-bar {
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .track-search-bar input {
+    width: 100% !important;
+  }
+
+  .track-search-bar button {
+    width: 100% !important;
+  }
 }
 
 

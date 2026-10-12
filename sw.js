@@ -3,7 +3,7 @@
    Enables offline fallback, asset caching, and PWA installation.
    ============================================================ */
 
-const CACHE_NAME = "mave-pwa-v1.1";
+const CACHE_NAME = "mave-pwa-v1.2";
 
 const PRECACHE_ASSETS = [
   "/",
@@ -84,4 +84,67 @@ self.addEventListener("fetch", (event) => {
       return cachedResp || fetchPromise;
     })
   );
+});
+
+// ============================================================
+// PWA PUSH & DEVICE SYSTEM NOTIFICATIONS
+// ============================================================
+
+// Push event: Handles Web Push notifications sent to the service worker
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "MAVE Supplier Portal",
+    body: "New supplier update received.",
+    icon: "/assets/brand/mave_icon_192.png",
+    badge: "/assets/brand/favicon-mave.jpg",
+    url: "/admin"
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = Object.assign(data, parsed);
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || "/assets/brand/mave_icon_192.png",
+    badge: data.badge || "/assets/brand/favicon-mave.jpg",
+    vibrate: [120, 60, 120],
+    data: { url: data.url || "/admin" },
+    tag: data.tag || "mave-notification",
+    renotify: true
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+// Notification click event: focuses existing open window or opens target URL
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || "/admin";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes("/admin") || client.url.includes("/cms")) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+// Message listener for local foreground/background notification triggers from app scripts
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "TRIGGER_PWA_NOTIFICATION") {
+    const { title, options } = event.data;
+    self.registration.showNotification(title, options);
+  }
 });

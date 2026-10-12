@@ -64,6 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTierForm();
   setupPaymentAndEmailSettings();
   setupNotificationCenter();
+  setupPwaNotificationsUI();
   setupSeedDemo();
   setupTendersTab();
   setupTenderModals();
@@ -111,7 +112,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // If new submission arrived while viewing
     if (prevCount > 0 && submissions.length > prevCount) {
-      showToast("New supplier application received.");
+      const latest = submissions[0];
+      const company = latest?.companyName || "A new supplier";
+      const code = latest?.trackingCode || "MVR-2026";
+      showToast(`New supplier application received: ${company}`);
+      triggerPwaNotification("New Supplier Application", {
+        body: `${company} submitted an onboarding dossier (${code}).`,
+        tag: `submission-${latest?.id || Date.now()}`
+      });
     }
   });
 
@@ -119,6 +127,14 @@ document.addEventListener("DOMContentLoaded", () => {
   onNotificationsSnapshot((notifications) => {
     state.notifications = notifications;
     renderNotifications();
+    const unread = notifications.filter((n) => !n.read).length;
+    if ("setAppBadge" in navigator) {
+      if (unread > 0) {
+        navigator.setAppBadge(unread).catch(() => {});
+      } else {
+        navigator.clearAppBadge().catch(() => {});
+      }
+    }
   });
 
   // 5. Subscribe to Tenders
@@ -130,12 +146,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 6. Subscribe to Tender Bids
   onBidsSnapshot((bids) => {
+    const prevBidsCount = state.bids.length;
     state.bids = bids;
     renderTendersTab();
     updateTendersMetrics();
     if (state.activeInspectingTender) {
       const refreshed = state.tenders.find((t) => t.id === state.activeInspectingTender.id) || state.activeInspectingTender;
       renderTenderBidsModal(refreshed);
+    }
+
+    if (prevBidsCount > 0 && bids.length > prevBidsCount) {
+      const latestBid = bids[0];
+      const company = latestBid?.companyName || "Supplier";
+      const ref = latestBid?.bidRef || "BID";
+      showToast(`New tender bid received: ${company} (${ref})`);
+      triggerPwaNotification("New Tender Bid Received", {
+        body: `${company} submitted a quotation (${ref}) on the OEM platform.`,
+        tag: `bid-${latestBid?.id || Date.now()}`
+      });
     }
   });
 });
@@ -349,6 +377,9 @@ function setupNotificationCenter() {
       if (!n.read) markNotificationRead(n.id);
     });
     dropdown.classList.remove("open");
+    if ("clearAppBadge" in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
   });
 }
 
@@ -401,6 +432,204 @@ window.handleNotificationClick = (notifId, submissionId) => {
   }
   document.querySelector('[data-tab="tab-submissions"]').click();
 };
+
+// ============================================================
+// PWA PUSH & DEVICE SYSTEM NOTIFICATIONS
+// ============================================================
+
+export async function triggerPwaNotification(title, options = {}) {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission !== "granted") return false;
+
+  const notifOptions = {
+    body: options.body || "New procurement update in MAVE Supplier Portal.",
+    icon: "/assets/brand/mave_icon_192.png",
+    badge: "/assets/brand/favicon-mave.jpg",
+    vibrate: [120, 60, 120],
+    data: { url: "/admin" },
+    tag: options.tag || `mave-alert-${Date.now()}`,
+    renotify: true,
+    ...options
+  };
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, notifOptions);
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn("[PWA Notification] SW showNotification failed, falling back to Notification API:", err);
+  }
+
+  try {
+    new Notification(title, notifOptions);
+    return true;
+  } catch (err) {
+    console.warn("[PWA Notification] Direct Notification failed:", err);
+    return false;
+  }
+}
+
+function setupPwaNotificationsUI() {
+  const statusDot = document.getElementById("pwaNotifStatusDot");
+  const statusBadge = document.getElementById("pwaNotifStatusBadge");
+  const toggleBtn = document.getElementById("togglePwaNotifBtn");
+  const testBtn = document.getElementById("testPwaNotifBtn");
+  const sheetBtn = document.getElementById("sheetPwaNotifBtn");
+  const sheetText = document.getElementById("sheetPwaNotifText");
+
+  function refreshStatus() {
+    if (!("Notification" in window)) {
+      if (statusDot) statusDot.style.background = "#6b7280";
+      if (statusBadge) {
+        statusBadge.textContent = "NOT SUPPORTED";
+        statusBadge.style.background = "rgba(107, 114, 128, 0.2)";
+        statusBadge.style.color = "#9ca3af";
+      }
+      if (toggleBtn) {
+        toggleBtn.textContent = "Unsupported Device";
+        toggleBtn.disabled = true;
+      }
+      if (testBtn) testBtn.disabled = true;
+      if (sheetText) sheetText.textContent = "Device Alerts: Unsupported";
+      return;
+    }
+
+    const perm = Notification.permission;
+    if (perm === "granted") {
+      if (statusDot) statusDot.style.background = "#4ade80";
+      if (statusBadge) {
+        statusBadge.textContent = "ACTIVE (OS PERMITTED)";
+        statusBadge.style.background = "rgba(74, 222, 128, 0.15)";
+        statusBadge.style.color = "#4ade80";
+      }
+      if (toggleBtn) {
+        toggleBtn.textContent = "Notifications Active";
+        toggleBtn.className = "cms-btn cms-btn-outline";
+        toggleBtn.style.color = "#4ade80";
+        toggleBtn.style.borderColor = "rgba(74, 222, 128, 0.4)";
+      }
+      if (testBtn) testBtn.disabled = false;
+      if (sheetText) sheetText.textContent = "Device Alerts: Active";
+    } else if (perm === "denied") {
+      if (statusDot) statusDot.style.background = "#ef4444";
+      if (statusBadge) {
+        statusBadge.textContent = "BLOCKED IN BROWSER";
+        statusBadge.style.background = "rgba(239, 68, 68, 0.15)";
+        statusBadge.style.color = "#f87171";
+      }
+      if (toggleBtn) {
+        toggleBtn.textContent = "Permission Blocked";
+        toggleBtn.className = "cms-btn cms-btn-outline";
+        toggleBtn.style.color = "#f87171";
+        toggleBtn.style.borderColor = "rgba(239, 68, 68, 0.4)";
+      }
+      if (testBtn) testBtn.disabled = false;
+      if (sheetText) sheetText.textContent = "Device Alerts: Blocked";
+    } else {
+      if (statusDot) statusDot.style.background = "#f59e0b";
+      if (statusBadge) {
+        statusBadge.textContent = "PERMISSION REQUIRED";
+        statusBadge.style.background = "rgba(245, 158, 11, 0.15)";
+        statusBadge.style.color = "#fbbf24";
+      }
+      if (toggleBtn) {
+        toggleBtn.textContent = "Enable Device Notifications";
+        toggleBtn.className = "cms-btn cms-btn-gold";
+        toggleBtn.style.color = "";
+        toggleBtn.style.borderColor = "";
+      }
+      if (testBtn) testBtn.disabled = false;
+      if (sheetText) sheetText.textContent = "Enable Device Notifications";
+    }
+  }
+
+  refreshStatus();
+
+  async function handleRequestPermission() {
+    if (!("Notification" in window)) {
+      showToast("System notifications are not supported on this browser.");
+      return;
+    }
+
+    if (Notification.permission === "granted") {
+      showToast("Device notifications are already active.");
+      return;
+    }
+
+    if (Notification.permission === "denied") {
+      showToast("Notifications blocked. Please allow notifications in site settings.");
+      return;
+    }
+
+    try {
+      const res = await Notification.requestPermission();
+      refreshStatus();
+      if (res === "granted") {
+        showToast("Device notifications enabled successfully.");
+        triggerPwaNotification("MAVE Procurement Alert", {
+          body: "System notifications are active. You will receive real-time alerts for supplier applications and bids.",
+          tag: "mave-welcome"
+        });
+      } else {
+        showToast("Notification permission was not granted.");
+      }
+    } catch (err) {
+      showToast("Error requesting notification permission: " + err.message);
+    }
+  }
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      if (Notification.permission === "granted") {
+        showToast("Device notifications are already active for this device.");
+      } else if (Notification.permission === "denied") {
+        showToast("Notifications blocked in browser. Enable notifications in your browser site settings.");
+      } else {
+        handleRequestPermission();
+      }
+    });
+  }
+
+  if (sheetBtn) {
+    sheetBtn.addEventListener("click", () => {
+      closeMobileMoreSheet();
+      handleRequestPermission();
+    });
+  }
+
+  if (testBtn) {
+    testBtn.addEventListener("click", async () => {
+      if (!("Notification" in window)) {
+        showToast("Notifications not supported on this browser.");
+        return;
+      }
+
+      if (Notification.permission !== "granted") {
+        const res = await Notification.requestPermission();
+        refreshStatus();
+        if (res !== "granted") {
+          showToast("Please allow notification permissions to test device alerts.");
+          return;
+        }
+      }
+
+      const sent = await triggerPwaNotification("MAVE Test Procurement Alert", {
+        body: "PWA device notification is functioning properly. Alerts are wired for live applications.",
+        tag: `test-alert-${Date.now()}`
+      });
+
+      if (sent) {
+        showToast("Test notification dispatched to your device.");
+      } else {
+        showToast("Failed to dispatch test notification.");
+      }
+    });
+  }
+}
 
 // ============================================================
 // METRICS & OVERVIEW

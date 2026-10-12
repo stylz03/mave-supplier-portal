@@ -46,14 +46,25 @@
 html,
 body {
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 html {
   height: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   min-height: 100%;
+  position: relative;
+  touch-action: pan-y;
+  overflow-x: hidden;
+  background: #1b140e;
+  font-family: "DM Sans", "Avenir Next", "Century Gothic", "Futura", "Trebuchet MS", sans-serif;
+  font-weight: 400;
+  color: #f2ede6;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Scroll runway: gives the fixed stage its scrub range.
@@ -73,22 +84,11 @@ body {
   height: 100vh;
 }
 
-/* DM Sans is the MUREZA brand face (sales.mave.africa). Used for all UI
-   text; the giant display word keeps its geometric stack below, which is
-   what gives the outline type its character. */
-body {
-  overflow-x: hidden;
-  background: #1b140e;
-  font-family: "DM Sans", "Avenir Next", "Century Gothic", "Futura", "Trebuchet MS", sans-serif;
-  font-weight: 400;
-  color: #f2ede6;
-  -webkit-font-smoothing: antialiased;
-}
-
 .stage {
   position: fixed;
   inset: 0;
-  width: 100vw;
+  width: 100%;
+  max-width: 100%;
   height: 100vh;
   overflow: hidden;
   background: #1b140e;
@@ -811,14 +811,15 @@ header nav {
    canvas reads its own height from here (see js/scroll-film.js), so
    changing this value is all that's needed.
    ------------------------------------------------------------ */
-@media (max-width: 900px) and (orientation: portrait) {
+@media (max-width: 900px) {
   :root {
-    --hero-top: 13vh;
-    --hero-h: min(92vw, 42vh);
+    --hero-top: 12vh;
+    --hero-h: min(88vw, 40vh);
   }
 
   .bg, .film {
-    width: 100vw !important;
+    width: 100% !important;
+    max-width: 100% !important;
     height: var(--hero-h) !important;
     top: var(--hero-top) !important;
     bottom: auto !important;
@@ -826,30 +827,39 @@ header nav {
   }
 
   .display-word {
-    font-size: min(9.5vw, 44px) !important;
-    top: calc(var(--hero-top) + 12vw) !important;
+    font-size: min(8vw, 36px) !important;
+    top: calc(var(--hero-top) + 10vw) !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     -webkit-text-stroke: 1px rgba(245, 240, 230, 0.85) !important;
+    letter-spacing: 0.1em !important;
+    max-width: 90% !important;
+    overflow: hidden !important;
+    text-align: center !important;
   }
 
   /* Header adjustments */
   header {
     height: auto !important;
-    padding: 2.5vh 5% !important;
+    padding: 16px 4% !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   .header-brand-wrap {
     flex-direction: column !important;
     align-items: flex-start !important;
     gap: 0.4vh !important;
   }
-  .logo { width: min(32vw, 130px) !important; }
+  .logo { width: min(30vw, 120px) !important; }
   .brand {
     padding-left: 0 !important; border-left: 0 !important;
   }
-  .brand-name { font-size: min(3vw, 13px) !important; }
+  .brand-name { font-size: min(2.8vw, 12px) !important; }
 
-  /* hide the whole row, not just the links, so the flex gaps go too */
+  /* hide desktop nav, show mobile menu button */
   header nav { display: none !important; }
 
   .portal-mobile-menu-btn {
@@ -857,37 +867,44 @@ header nav {
   }
 
   .cta {
-    padding: 8px 16px !important;
-    font-size: min(2.8vw, 12px) !important;
+    padding: 8px 14px !important;
+    font-size: min(2.8vw, 11px) !important;
   }
 
-  /* Sits directly under the hero band; the gap is one value, not a
-     repeat of the band arithmetic. */
+  /* Sits directly under the hero band with responsive word-wrapping */
   .left-block {
     position: absolute !important;
-    top: calc(var(--hero-top) + var(--hero-h) + 3.5vh) !important;
-    left: 5% !important;
-    width: 90% !important;
+    top: calc(var(--hero-top) + var(--hero-h) + 2.5vh) !important;
+    left: 4% !important;
+    right: 4% !important;
+    width: 92% !important;
+    max-width: 92% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
   }
-  .kicker { font-size: min(3vw, 14px) !important; position: static !important; transform: none !important; margin-bottom: 1vh !important; }
-  .headline { font-size: min(6.5vw, 32px) !important; position: static !important; transform: none !important; margin-bottom: 0.5vh !important; }
-  .tagline { font-size: min(3.5vw, 17px) !important; position: static !important; transform: none !important; }
+  .kicker { font-size: min(3vw, 13px) !important; position: static !important; transform: none !important; margin-bottom: 0.8vh !important; white-space: normal !important; }
+  .headline { font-size: min(5.8vw, 28px) !important; position: static !important; transform: none !important; margin-bottom: 0.5vh !important; white-space: normal !important; word-break: break-word !important; line-height: 1.25 !important; }
+  .tagline { font-size: min(3.2vw, 15px) !important; position: static !important; transform: none !important; white-space: normal !important; word-break: break-word !important; line-height: 1.4 !important; letter-spacing: 0.08em !important; }
   .left-rule { display: none !important; }
   .rail { display: none !important; }
 
-  /* Service bar - pinned to BOTTOM so it never cuts off! */
+  /* Service bar - pinned cleanly to bottom */
   .service-bar {
-    width: 94% !important;
-    left: 3% !important;
+    width: 92% !important;
+    left: 4% !important;
+    right: 4% !important;
     height: auto !important;
     top: auto !important;
     bottom: 2vh !important;
     display: flex !important;
     flex-wrap: wrap !important;
     justify-content: space-between !important;
-    padding: min(3vw, 20px) !important;
-    border-radius: min(3vw, 18px) !important;
-    background: rgba(18, 13, 9, 0.85) !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    background: rgba(18, 13, 9, 0.9) !important;
+    box-sizing: border-box !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    backdrop-filter: blur(12px) !important;
   }
 
   .service {
@@ -896,7 +913,7 @@ header nav {
     top: auto !important;
     transform: none !important;
     width: 45% !important; 
-    margin-bottom: 1vh !important;
+    margin-bottom: 0.8vh !important;
     gap: 1vw !important;
   }
 
@@ -913,11 +930,11 @@ header nav {
     margin-top: 0.5vh !important;
   }
 
-  .num { font-size: min(6vw, 30px) !important; }
-  .s-title { font-size: min(3vw, 15px) !important; }
-  .s-sub { font-size: min(2vw, 12px) !important; }
-  .tot-title { font-size: min(4vw, 18px) !important; }
-  .tot-num { font-size: min(7vw, 34px) !important; line-height: 1 !important; }
+  .num { font-size: min(6vw, 26px) !important; }
+  .s-title { font-size: min(2.8vw, 13px) !important; }
+  .s-sub { font-size: min(2vw, 11px) !important; }
+  .tot-title { font-size: min(3.8vw, 16px) !important; }
+  .tot-num { font-size: min(6.5vw, 30px) !important; line-height: 1 !important; }
 
   .sep { display: none !important; }
   .hotspot, .hotspot-label, .explore, .progress { display: none !important; }
