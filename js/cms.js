@@ -53,7 +53,10 @@ let state = {
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
   setupAuthGate();
+  setupSidebarCollapse();
   setupTabs();
+  setupMobileBottomNav();
+  setupPwaInstallPrompt();
   setupFilterButtons();
   setupSearch();
   setupModals();
@@ -138,23 +141,186 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ============================================================
-// UI NAVIGATION & TABS
+// UI NAVIGATION, COLLAPSIBLE SIDEBAR & RESPONSIVE TABS
 // ============================================================
 
-function setupTabs() {
-  const tabs = document.querySelectorAll(".cms-nav-item");
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      tabs.forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
+function setupSidebarCollapse() {
+  const toggleBtn = document.getElementById("sidebarCollapseBtn");
+  const sidebar = document.getElementById("cmsSidebar");
+  if (!sidebar) return;
 
+  const applyCollapsedState = (collapsed) => {
+    if (collapsed) {
+      sidebar.classList.add("collapsed");
+      document.body.classList.add("sidebar-collapsed");
+    } else {
+      sidebar.classList.remove("collapsed");
+      document.body.classList.remove("sidebar-collapsed");
+    }
+  };
+
+  // Restore saved state from localStorage
+  const savedState = localStorage.getItem("cms_sidebar_collapsed") === "true";
+  applyCollapsedState(savedState);
+
+  const toggle = () => {
+    const isNowCollapsed = !sidebar.classList.contains("collapsed");
+    applyCollapsedState(isNowCollapsed);
+    try {
+      localStorage.setItem("cms_sidebar_collapsed", isNowCollapsed ? "true" : "false");
+    } catch (e) {
+      console.warn("Could not save sidebar preference to localStorage:", e);
+    }
+  };
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", toggle);
+  }
+
+  // Keyboard shortcut: Ctrl+B or Cmd+B
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
+      e.preventDefault();
+      toggle();
+    }
+  });
+}
+
+function switchTab(tabId) {
+  if (!tabId) return;
+
+  // Update desktop sidebar items
+  document.querySelectorAll(".cms-nav-item").forEach((item) => {
+    item.classList.toggle("active", item.dataset.tab === tabId);
+  });
+
+  // Update bottom nav items
+  document.querySelectorAll(".bottom-nav-item[data-tab]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.tab === tabId);
+  });
+
+  // Switch tab content container
+  document.querySelectorAll(".cms-tab-content").forEach((c) => {
+    c.classList.remove("active");
+  });
+  const activeContent = document.getElementById(tabId);
+  if (activeContent) {
+    activeContent.classList.add("active");
+  }
+
+  // Close mobile more sheet if open
+  closeMobileMoreSheet();
+
+  // Scroll to top cleanly
+  const main = document.querySelector(".cms-main");
+  if (main) main.scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function setupTabs() {
+  const desktopTabs = document.querySelectorAll(".cms-nav-item");
+  desktopTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
       const targetId = tab.dataset.tab;
-      document.querySelectorAll(".cms-tab-content").forEach((c) => {
-        c.classList.remove("active");
-      });
-      const activeContent = document.getElementById(targetId);
-      if (activeContent) activeContent.classList.add("active");
+      if (targetId) switchTab(targetId);
     });
+  });
+}
+
+function closeMobileMoreSheet() {
+  const sheet = document.getElementById("mobileMoreSheet");
+  const backdrop = document.getElementById("mobileMoreBackdrop");
+  if (sheet) sheet.classList.remove("active");
+  if (backdrop) backdrop.classList.remove("active");
+}
+
+function openMobileMoreSheet() {
+  const sheet = document.getElementById("mobileMoreSheet");
+  const backdrop = document.getElementById("mobileMoreBackdrop");
+  if (sheet) sheet.classList.add("active");
+  if (backdrop) backdrop.classList.add("active");
+}
+
+function setupMobileBottomNav() {
+  // Bottom navigation tab triggers
+  document.querySelectorAll(".bottom-nav-item[data-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.dataset.tab;
+      if (targetId) switchTab(targetId);
+    });
+  });
+
+  // "More" button toggles bottom drawer
+  const moreBtn = document.getElementById("bottomNavMoreBtn");
+  if (moreBtn) {
+    moreBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openMobileMoreSheet();
+    });
+  }
+
+  // Close buttons and backdrop click
+  const closeBtn = document.getElementById("mobileMoreCloseBtn");
+  const backdrop = document.getElementById("mobileMoreBackdrop");
+  if (closeBtn) closeBtn.addEventListener("click", closeMobileMoreSheet);
+  if (backdrop) backdrop.addEventListener("click", closeMobileMoreSheet);
+
+  // Sheet nav items
+  document.querySelectorAll(".mobile-more-item[data-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.dataset.tab;
+      if (targetId) switchTab(targetId);
+    });
+  });
+
+  // Sheet Seed Test Application trigger
+  const sheetSeedBtn = document.getElementById("sheetSeedBtn");
+  if (sheetSeedBtn) {
+    sheetSeedBtn.addEventListener("click", () => {
+      closeMobileMoreSheet();
+      const desktopSeedBtn = document.getElementById("seedDemoBtn");
+      if (desktopSeedBtn) desktopSeedBtn.click();
+    });
+  }
+
+  // Sheet Sign Out trigger
+  const sheetSignOutBtn = document.getElementById("sheetSignOutBtn");
+  if (sheetSignOutBtn) {
+    sheetSignOutBtn.addEventListener("click", () => {
+      closeMobileMoreSheet();
+      const signOutBtn = document.getElementById("adminSignOutBtn");
+      if (signOutBtn) signOutBtn.click();
+    });
+  }
+}
+
+let deferredPwaPrompt = null;
+function setupPwaInstallPrompt() {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPwaPrompt = e;
+    const pwaBtn = document.getElementById("pwaInstallAdminBtn");
+    if (pwaBtn) {
+      pwaBtn.style.display = "flex";
+      pwaBtn.addEventListener("click", async () => {
+        if (!deferredPwaPrompt) return;
+        deferredPwaPrompt.prompt();
+        const { outcome } = await deferredPwaPrompt.userChoice;
+        if (outcome === "accepted") {
+          showToast("MAVE Admin installed successfully!");
+        }
+        deferredPwaPrompt = null;
+        pwaBtn.style.display = "none";
+        closeMobileMoreSheet();
+      });
+    }
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredPwaPrompt = null;
+    const pwaBtn = document.getElementById("pwaInstallAdminBtn");
+    if (pwaBtn) pwaBtn.style.display = "none";
+    showToast("App is ready on your Home Screen.");
   });
 }
 
@@ -253,6 +419,12 @@ function updateOverviewMetrics() {
   if (pendingBadge) {
     pendingBadge.textContent = pending;
     pendingBadge.style.display = pending > 0 ? "inline-block" : "none";
+  }
+
+  const bottomPendingBadge = document.getElementById("bottomPendingBadge");
+  if (bottomPendingBadge) {
+    bottomPendingBadge.textContent = pending;
+    bottomPendingBadge.style.display = pending > 0 ? "inline-block" : "none";
   }
 
   // Update filter counters
@@ -1585,6 +1757,9 @@ function updateTendersMetrics() {
 
   const badge = document.getElementById("openTendersBadge");
   if (badge) badge.textContent = openCount;
+
+  const bottomTendersBadge = document.getElementById("bottomTendersBadge");
+  if (bottomTendersBadge) bottomTendersBadge.textContent = openCount;
 
   const allCountEl = document.getElementById("countTendersAll");
   if (allCountEl) allCountEl.textContent = state.tenders.length;

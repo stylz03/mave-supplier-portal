@@ -1,0 +1,33 @@
+{
+  "name": "MUREZA / MAVE Supplier Portal",
+  "short_name": "MAVE Suppliers",
+  "description": "Pan-African Automotive Manufacturing Supply Chain Portal under AfCFTA",
+  "start_url": "/index.html",
+  "id": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#060403",
+  "theme_color": "#060403",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/brand/mave_icon_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/brand/mave_icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/brand/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["business", "finance", "productivity"]
+}

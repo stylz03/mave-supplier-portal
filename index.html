@@ -5,13 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MUREZA Supplier Portal — Pan-African Automotive Supply Chain</title>
   <link rel="icon" href="assets/brand/favicon-mave.jpg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#060403">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MAVE Suppliers">
+  <link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=16">
-  <link rel="stylesheet" href="css/portal-sections.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=17">
+  <link rel="stylesheet" href="css/portal-sections.css?v=4">
   <script>
+    // Service Worker Registration for PWA Installability
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function() {
+        navigator.serviceWorker.register("/sw.js").then(function(reg) {
+          console.log("[PWA] Service Worker registered:", reg.scope);
+        }).catch(function(err) {
+          console.warn("[PWA] Registration failed:", err);
+        });
+      });
+    }
+
     // Early modal and navigation stubs to ensure instant responsiveness before modules evaluate
     window.openRegistrationForTier = window.openRegistrationForTier || function(id) {
       const modal = document.getElementById("regModal");
@@ -53,6 +71,12 @@
     };
     window.scrollToTier = window.scrollToTier || function(id) {
       window.scrollToSection("tiers-section");
+    };
+    window.togglePortalMobileMenu = window.togglePortalMobileMenu || function() {
+      const drawer = document.getElementById("portalMobileNavDrawer");
+      const btn = document.getElementById("portalMobileMenuBtn");
+      if (drawer) drawer.classList.toggle("open");
+      if (btn) btn.classList.toggle("open");
     };
   </script>
 </head>
@@ -98,10 +122,38 @@
           <a href="#tracking-section" class="nav-link nav-journal" onclick="window.scrollToSection('tracking-section'); return false;">TRACKING</a>
         </nav>
 
-        <a href="#regModal" class="cta" onclick="window.openRegistrationForTier(); return false;">
-          JOIN NETWORK&nbsp;&nbsp;<span class="cta-arrow">&#8599;</span>
-        </a>
+        <div class="header-cta-group">
+          <a href="#regModal" class="cta" onclick="window.openRegistrationForTier(); return false;">
+            JOIN NETWORK&nbsp;&nbsp;<span class="cta-arrow">&#8599;</span>
+          </a>
+
+          <button type="button" class="portal-mobile-menu-btn" id="portalMobileMenuBtn" aria-label="Toggle navigation menu" onclick="window.togglePortalMobileMenu()">
+            <span class="menu-bar"></span>
+            <span class="menu-bar"></span>
+            <span class="menu-bar"></span>
+          </button>
+        </div>
       </header>
+
+      <!-- Mobile Navigation Drawer -->
+      <div class="portal-mobile-drawer" id="portalMobileNavDrawer">
+        <div class="portal-mobile-drawer-header">
+          <img src="assets/brand/mave_logo.png" alt="MAVE" width="120">
+          <button type="button" class="modal-close" onclick="window.togglePortalMobileMenu()">&times;</button>
+        </div>
+        <nav class="portal-mobile-drawer-links">
+          <a href="#strategic-section" onclick="window.scrollToSection('strategic-section'); window.togglePortalMobileMenu(); return false;">OVERVIEW</a>
+          <a href="#tiers-section" onclick="window.scrollToSection('tiers-section'); window.togglePortalMobileMenu(); return false;">SUPPLIERS &amp; TIERS</a>
+          <a href="#tenders-section" onclick="window.scrollToSection('tenders-section'); window.togglePortalMobileMenu(); return false;">OPEN TENDERS &amp; RFPs</a>
+          <a href="#strategic-section" onclick="window.scrollToSection('strategic-section'); window.togglePortalMobileMenu(); return false;">INFRASTRUCTURE</a>
+          <a href="#tracking-section" onclick="window.scrollToSection('tracking-section'); window.togglePortalMobileMenu(); return false;">DOSSIER TRACKING</a>
+        </nav>
+        <div style="padding: 20px 24px;">
+          <button class="portal-tier-cta-btn" onclick="window.togglePortalMobileMenu(); window.openRegistrationForTier();">
+            JOIN NETWORK ↗
+          </button>
+        </div>
+      </div>
 
       <!-- Left text block (reactive to CMS) -->
       <section class="left-block" aria-label="Strategic partners">

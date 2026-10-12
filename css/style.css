@@ -371,8 +371,115 @@ header nav {
   text-decoration: none;
 }
 
-.cta-arrow {
-  letter-spacing: 0;
+.header-cta-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.portal-mobile-menu-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  background: rgba(18, 13, 9, 0.7);
+  border: 1px solid rgba(240, 233, 220, 0.35);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.portal-mobile-menu-btn:hover {
+  border-color: rgba(207, 143, 69, 0.7);
+  background: rgba(207, 143, 69, 0.15);
+}
+
+.portal-mobile-menu-btn .menu-bar {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: #f7f2ea;
+  border-radius: 2px;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.portal-mobile-menu-btn.open .menu-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.portal-mobile-menu-btn.open .menu-bar:nth-child(2) {
+  opacity: 0;
+}
+.portal-mobile-menu-btn.open .menu-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile Slide-Out Navigation Drawer */
+.portal-mobile-drawer {
+  position: fixed;
+  top: 0;
+  right: -105%;
+  width: min(85vw, 360px);
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(13, 9, 6, 0.96);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(207, 143, 69, 0.3);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -12px 0 50px rgba(0, 0, 0, 0.85);
+  transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+.portal-mobile-drawer.open {
+  right: 0;
+}
+
+.portal-mobile-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid rgba(207, 143, 69, 0.15);
+}
+
+.portal-mobile-drawer-links {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  gap: 14px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.portal-mobile-drawer-links a {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: #f7f2ea;
+  text-decoration: none;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(207, 143, 69, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
+  display: block;
+}
+
+.portal-mobile-drawer-links a:hover,
+.portal-mobile-drawer-links a:active {
+  background: rgba(207, 143, 69, 0.12);
+  border-color: rgba(207, 143, 69, 0.5);
+  color: #cf8f45;
 }
 
 /* ------------------------------------------------------------
@@ -745,6 +852,10 @@ header nav {
   /* hide the whole row, not just the links, so the flex gaps go too */
   header nav { display: none !important; }
 
+  .portal-mobile-menu-btn {
+    display: flex !important;
+  }
+
   .cta {
     padding: 8px 16px !important;
     font-size: min(2.8vw, 12px) !important;
@@ -852,8 +963,11 @@ header nav {
   .explore { display: none; }
 }
 
-/* Very narrow phones: keep the tier bar two-up rather than letting
-   the numbers and labels collide. */
+@media (max-width: 900px) {
+  header nav { display: none !important; }
+  .portal-mobile-menu-btn { display: flex !important; }
+}
+
 @media (max-width: 360px) and (orientation: portrait) {
   .service { width: 47% !important; }
   .num { font-size: 5.4vw !important; }

@@ -1,0 +1,33 @@
+{
+  "name": "MAVE Supplier Admin & Procurement CMS",
+  "short_name": "MAVE Admin",
+  "description": "Executive Supplier Management, Tenders, and Dossier Review Dashboard",
+  "start_url": "/admin",
+  "id": "/admin",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#060403",
+  "theme_color": "#060403",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/brand/mave_icon_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/brand/mave_icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/brand/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}
