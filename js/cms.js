@@ -897,6 +897,22 @@ function setupAuthGate() {
   const adminEmailText = document.getElementById("adminEmailText");
   const adminSignOutBtn = document.getElementById("adminSignOutBtn");
 
+  const AUTHORIZED_ADMIN_EMAILS = [
+    "tinashe@playmotech.co.za",
+    "tatenda@mave.africa",
+    "admin@mave.africa"
+  ];
+
+  function isAuthorizedAdmin(email) {
+    if (!email) return false;
+    const lower = email.toLowerCase().trim();
+    return (
+      AUTHORIZED_ADMIN_EMAILS.includes(lower) ||
+      lower.endsWith("@mave.africa") ||
+      lower.endsWith("@playmotech.co.za")
+    );
+  }
+
   function setAuthenticatedUser(user) {
     state.currentAdmin = user;
     if (overlay) overlay.style.display = "none";
@@ -913,10 +929,12 @@ function setupAuthGate() {
     if (cached) {
       try {
         const u = JSON.parse(cached);
-        state.currentAdmin = u;
-        if (overlay) overlay.style.display = "none";
-        if (adminEmailText) adminEmailText.textContent = u.email || "admin@mave.africa";
-        return;
+        if (isAuthorizedAdmin(u.email)) {
+          state.currentAdmin = u;
+          if (overlay) overlay.style.display = "none";
+          if (adminEmailText) adminEmailText.textContent = u.email || "admin@mave.africa";
+          return;
+        }
       } catch (e) {}
     }
     state.currentAdmin = null;
@@ -926,7 +944,7 @@ function setupAuthGate() {
 
   // Subscribe to auth state changes
   onAdminAuthChanged((user) => {
-    if (user) {
+    if (user && isAuthorizedAdmin(user.email)) {
       setAuthenticatedUser(user);
     } else {
       setUnauthenticated();
@@ -941,6 +959,14 @@ function setupAuthGate() {
       const password = passwordInput.value;
 
       if (!email || !password) return;
+
+      if (!isAuthorizedAdmin(email)) {
+        if (errorMsg) {
+          errorMsg.textContent = "Access denied: " + email + " is not an authorized MAVE procurement administrator.";
+          errorMsg.style.display = "block";
+        }
+        return;
+      }
 
       if (errorMsg) errorMsg.style.display = "none";
       submitBtn.textContent = "Authenticating...";
