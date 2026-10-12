@@ -10,25 +10,37 @@ import {
   onTiersSnapshot,
   submitSupplierRegistration,
   onSubmissionsSnapshot,
+  onTendersSnapshot,
+  submitTenderBid,
   DEFAULT_PAGE_CONTENT,
-  DEFAULT_TIERS
+  DEFAULT_TIERS,
+  DEFAULT_TENDERS
 } from "./firebase-client.js";
 
 let currentContent = { ...DEFAULT_PAGE_CONTENT };
 let currentTiers = [...DEFAULT_TIERS];
+let currentTenders = [...DEFAULT_TENDERS];
 let allSubmissions = [];
 let selectedFiles = [];
+let selectedBidFile = null;
+let currentTenderFilter = "all";
 
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
   setupRegistrationModal();
   setupDetailsModal();
   setupTrackingLookup();
+  setupTendersSection();
+  setupTenderBidModal();
 
   // 1. Listen for real-time Page Content
   onSiteContentSnapshot((content) => {
     currentContent = content;
     applyContentUpdates(content);
+    if (currentTiers.length > 0) {
+      renderTiersSection(currentTiers);
+      populateModalTierOptions(currentTiers);
+    }
   });
 
   // 2. Listen for real-time Tiers
@@ -39,9 +51,15 @@ document.addEventListener("DOMContentLoaded", () => {
     populateModalTierOptions(tiers);
   });
 
-  // 3. Listen for submissions (for tracking lookup)
-  onSubmissionsSnapshot((subs) => {
-    allSubmissions = subs;
+  // 3. Listen for Submissions
+  onSubmissionsSnapshot((submissions) => {
+    allSubmissions = submissions;
+  });
+
+  // 4. Listen for real-time Tenders
+  onTendersSnapshot((tenders) => {
+    currentTenders = tenders;
+    renderPortalTenders(tenders);
   });
 });
 
@@ -155,6 +173,7 @@ function renderTiersSection(tiers) {
     .map((tier) => {
       const focusList = Array.isArray(tier.focus) ? tier.focus : (tier.focus || "").split("\n").filter(Boolean);
       const remainingSlots = Math.max(0, (Number(tier.capacity) || 10) - (Number(tier.filled) || 0));
+      const feesEnabled = currentContent?.tierFeesEnabled === true;
 
       return `
       <div class="portal-tier-card" id="tier-card-${tier.id}" style="border-top: 3px solid ${tier.color || "var(--gold)"};">
@@ -170,14 +189,22 @@ function renderTiersSection(tiers) {
         <h3 class="portal-tier-title">${escapeHtml(tier.title)}</h3>
         <p class="portal-tier-sub" style="color: ${tier.color || "var(--gold)"};">${escapeHtml(tier.sub)}</p>
 
-        <!-- Pricing info configured from CMS -->
+        <!-- Pricing info configured from CMS (Waived for Pilot Onboarding) -->
         <div class="portal-tier-pricing-box">
           <div>
-            <div class="portal-pricing-term">${escapeHtml(tier.feeFrequency || "Once-off Qualification Fee")}</div>
-            <div class="portal-pricing-amount">${escapeHtml(tier.feeFormatted || "R " + (tier.feeAmount || 30000).toLocaleString())}</div>
+            <div class="portal-pricing-term">
+              ${feesEnabled ? escapeHtml(tier.feeFrequency || "Once-off Qualification Fee") : "AfCFTA Pilot Onboarding"}
+            </div>
+            <div class="portal-pricing-amount" style="${!feesEnabled ? "color: var(--gold-light);" : ""}">
+              ${
+                feesEnabled
+                  ? escapeHtml(tier.feeFormatted || "R " + (tier.feeAmount || 30000).toLocaleString())
+                  : `Fee Waived <span style="font-size: 11px; font-weight: normal; color: var(--ink-faint);">(100% Sponsored)</span>`
+              }
+            </div>
           </div>
-          <span style="font-size: 10px; letter-spacing: 0.1em; color: var(--gold); font-weight: 700; text-transform: uppercase;">
-            REGISTRATION FEE
+          <span style="font-size: 10px; letter-spacing: 0.1em; color: ${feesEnabled ? "var(--gold)" : "#68d391"}; font-weight: 700; text-transform: uppercase;">
+            ${feesEnabled ? "REGISTRATION FEE" : "PILOT ONBOARDING"}
           </span>
         </div>
 
@@ -204,6 +231,7 @@ function setupNavigation() {
   const navMap = {
     ".nav-services": "strategic-section",
     ".nav-performance": "tiers-section",
+    ".nav-tenders": "tenders-section",
     ".nav-atelier": "strategic-section",
     ".nav-journal": "tracking-section"
   };
@@ -218,10 +246,22 @@ function setupNavigation() {
     }
   });
 
+  // Catch all navigation links in the header
+  document.querySelectorAll("header nav a").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      const href = link.getAttribute("href") || "";
+      if (href.startsWith("#") && href.length > 1) {
+        e.preventDefault();
+        window.scrollToSection(href.substring(1));
+      }
+    });
+  });
+
   // Explore program button in hero
   const exploreBtn = document.querySelector(".explore");
   if (exploreBtn) {
-    exploreBtn.addEventListener("click", () => {
+    exploreBtn.addEventListener("click", (e) => {
+      e.preventDefault();
       window.scrollToSection("tiers-section");
     });
   }
@@ -239,7 +279,8 @@ function setupNavigation() {
 window.scrollToSection = (sectionId) => {
   const sec = document.getElementById(sectionId);
   if (sec) {
-    sec.scrollIntoView({ behavior: "smooth" });
+    const y = sec.getBoundingClientRect().top + window.pageYOffset - 30;
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
   } else {
     // Scroll past hero
     const hero = document.getElementById("heroContainer");
@@ -252,7 +293,8 @@ window.scrollToSection = (sectionId) => {
 window.scrollToTier = (tierId) => {
   const el = document.getElementById(`tier-card-${tierId}`);
   if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const y = el.getBoundingClientRect().top + window.pageYOffset - 50;
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
     el.style.boxShadow = "0 0 30px rgba(207, 143, 69, 0.5)";
     setTimeout(() => {
       el.style.boxShadow = "";
@@ -313,7 +355,8 @@ function setupRegistrationModal() {
       .map(
         (f) => `
       <div class="file-pill">
-        <span>📄 ${escapeHtml(f.name)} (${formatFileSize(f.size)})</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 6px; color: var(--gold);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>${escapeHtml(f.name)} (${formatFileSize(f.size)})</span>
       </div>
     `
       )
@@ -376,22 +419,25 @@ function setupRegistrationModal() {
 function updateModalFeeDisplay(tierId) {
   const feeEl = document.getElementById("modalTierFeeDisplay");
   if (!feeEl) return;
+  const feesEnabled = currentContent?.tierFeesEnabled === true;
   const tier = currentTiers.find((t) => t.id === tierId);
-  if (tier) {
-    feeEl.textContent = `${tier.feeFormatted || "R " + tier.feeAmount} (${tier.feeFrequency || "Once-off"})`;
+
+  if (feesEnabled && tier) {
+    feeEl.innerHTML = `${escapeHtml(tier.feeFormatted || "R " + tier.feeAmount)} <span style="font-size: 11px; color: var(--ink-faint); font-weight: normal;">(${escapeHtml(tier.feeFrequency || "Once-off")})</span>`;
   } else {
-    feeEl.textContent = "Standard Qualification Fee";
+    feeEl.innerHTML = `<span style="color: #68d391; font-weight: 700;">Waived — AfCFTA Pilot Program ($0 / Free)</span>`;
   }
 }
 
 function populateModalTierOptions(tiers) {
   const select = document.getElementById("regTierSelect");
   if (!select) return;
+  const feesEnabled = currentContent?.tierFeesEnabled === true;
 
   select.innerHTML = tiers
     .map(
       (t) => `
-    <option value="${t.id}">${escapeHtml(t.title)} (${escapeHtml(t.sub)}) — Fee: ${escapeHtml(t.feeFormatted || "R " + t.feeAmount)}</option>
+    <option value="${t.id}">${escapeHtml(t.title)} (${escapeHtml(t.sub)}) — ${feesEnabled ? "Fee: " + escapeHtml(t.feeFormatted || "R " + t.feeAmount) : "AfCFTA Pilot Onboarding (Fee Waived)"}</option>
   `
     )
     .join("");
@@ -441,8 +487,15 @@ function setupDetailsModal() {
 
   const openHotspot = () => {
     const modal = document.getElementById("vehicleDetailsModal");
-    if (modal) modal.classList.add("open");
+    if (modal) {
+      modal.classList.add("open");
+      if (typeof window.initVillagerDigitalTwin === "function") {
+        setTimeout(() => window.initVillagerDigitalTwin("twin3DCanvasContainer"), 40);
+      }
+    }
   };
+
+  window.openVehicleDetailsModal = openHotspot;
 
   if (hotspot) hotspot.addEventListener("click", openHotspot);
   if (hotspotLabel) hotspotLabel.addEventListener("click", openHotspot);
@@ -519,6 +572,227 @@ function setupTrackingLookup() {
             No application found matching "<strong>${escapeHtml(query)}</strong>". Please verify your Tracking Code (e.g. MVR-2026-XXXX) or registered email.
           </div>
         `;
+      }
+    });
+  }
+}
+
+// ============================================================
+// 5. TENDERS & RFPs SHOWCASE
+// ============================================================
+
+function setupTendersSection() {
+  const filterBtns = document.querySelectorAll(".tender-filter-btn");
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentTenderFilter = btn.dataset.filter || "all";
+      renderPortalTenders(currentTenders);
+    });
+  });
+}
+
+function renderPortalTenders(tenders) {
+  const container = document.getElementById("portalTendersContainer");
+  const countAll = document.getElementById("portalTendersCountAll");
+  if (countAll) countAll.textContent = tenders.length;
+  if (!container) return;
+
+  const filtered = tenders.filter((t) => {
+    if (!currentTenderFilter || currentTenderFilter === "all") return true;
+    const cat = (t.category || "").toLowerCase();
+    const filter = currentTenderFilter.toLowerCase().replace(/&amp;/g, "&");
+    const terms = filter.split(/\s+and\s+|\s*&\s*|\s+/).filter((term) => term.length > 2);
+    return terms.some((term) => cat.includes(term));
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; color: var(--ink-faint); padding: 40px; background: rgba(20, 16, 12, 0.5); border: 1px dashed rgba(207,143,69,0.2); border-radius: var(--radius-sm);">
+        No tenders currently open in this category. Check back soon or register your capabilities to receive RFP invitations.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered
+    .map(
+      (tender) => `
+    <div class="tender-card">
+      <div>
+        <div class="tender-header-row">
+          <span class="tender-ref-badge">${escapeHtml(tender.ref || "RFP-2026")}</span>
+          <span class="tender-status-badge">${(tender.status || "open").toUpperCase().replace(/_/g, " ")}</span>
+        </div>
+
+        <h3 class="tender-title">${escapeHtml(tender.title)}</h3>
+        <p class="tender-category">${escapeHtml(tender.category || "OEM Work Package")}</p>
+
+        <div class="tender-meta-grid">
+          <div>
+            <div class="tender-meta-label">Annual Volume</div>
+            <div class="tender-meta-val">${escapeHtml(tender.volume || "Annual contract")}</div>
+          </div>
+          <div>
+            <div class="tender-meta-label">AfCFTA Local Content</div>
+            <div class="tender-meta-val" style="color: var(--gold);">Min. ${tender.localContentPct || 50}%</div>
+          </div>
+          <div>
+            <div class="tender-meta-label">Est. Package Value</div>
+            <div class="tender-meta-val">${escapeHtml(tender.estimatedValue || "Negotiable")}</div>
+          </div>
+          <div>
+            <div class="tender-meta-label">Delivery SEZ Hub</div>
+            <div class="tender-meta-val">${escapeHtml(tender.location || "SEZ Hub")}</div>
+          </div>
+        </div>
+
+        <p class="tender-scope-text">${escapeHtml(tender.scope || "")}</p>
+      </div>
+
+      <div class="tender-action-row">
+        <div class="tender-deadline-box">
+          Bids Close: <span class="tender-deadline-val">${formatDate(tender.deadline)}</span>
+        </div>
+        <button type="button" class="portal-tier-cta-btn" style="width: auto; padding: 10px 18px; font-size: 11px;" onclick="window.openTenderBidModal('${tender.id}')">
+          Submit Proposal &rarr;
+        </button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+}
+
+// ============================================================
+// 6. TENDER BID SUBMISSION MODAL
+// ============================================================
+
+window.openTenderBidModal = (tenderId = null) => {
+  const modal = document.getElementById("tenderBidModal");
+  if (!modal) return;
+
+  const tender = currentTenders.find((t) => t.id === tenderId) || currentTenders[0];
+  if (tender) {
+    document.getElementById("bidFormTenderId").value = tender.id;
+    document.getElementById("bidFormTenderRef").value = tender.ref;
+    document.getElementById("bidFormTenderTitle").value = tender.title;
+    document.getElementById("bidModalTenderRef").textContent = tender.ref;
+    document.getElementById("bidModalTenderTitle").textContent = tender.title;
+    document.getElementById("bidLocalContentPct").value = tender.localContentPct || 60;
+  }
+
+  document.getElementById("bidModalFormScreen").style.display = "block";
+  document.getElementById("bidSuccessScreen").style.display = "none";
+  selectedBidFile = null;
+  const pill = document.getElementById("bidFileSelectedPill");
+  if (pill) pill.innerHTML = "";
+
+  modal.classList.add("open");
+};
+
+window.closeTenderBidModal = () => {
+  const modal = document.getElementById("tenderBidModal");
+  if (modal) modal.classList.remove("open");
+  selectedBidFile = null;
+};
+
+function setupTenderBidModal() {
+  const modal = document.getElementById("tenderBidModal");
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) window.closeTenderBidModal();
+    });
+  }
+
+  // Quick autofill from tracking lookup
+  const autofillBtn = document.getElementById("bidAutofillBtn");
+  const quickInput = document.getElementById("bidQuickLookupInput");
+  if (autofillBtn && quickInput) {
+    autofillBtn.addEventListener("click", () => {
+      const code = quickInput.value.trim().toLowerCase();
+      if (!code) return;
+      const found = allSubmissions.find(
+        (s) =>
+          (s.trackingCode || "").toLowerCase() === code ||
+          (s.contactEmail || "").toLowerCase() === code ||
+          (s.companyName || "").toLowerCase().includes(code)
+      );
+      if (found) {
+        document.getElementById("bidCompanyName").value = found.companyName || "";
+        document.getElementById("bidContactName").value = found.contactName || "";
+        document.getElementById("bidContactEmail").value = found.contactEmail || "";
+        document.getElementById("bidContactPhone").value = found.contactPhone || "";
+        if (found.capabilitySummary) {
+          document.getElementById("bidTechnicalNotes").value = found.capabilitySummary;
+        }
+        autofillBtn.textContent = "Autofilled!";
+        setTimeout(() => (autofillBtn.textContent = "Autofill Details"), 2000);
+      } else {
+        alert("No supplier dossier found matching that code. You can enter details manually below.");
+      }
+    });
+  }
+
+  // File dropzone
+  const fileInput = document.getElementById("bidFileInput");
+  const filePill = document.getElementById("bidFileSelectedPill");
+  if (fileInput) {
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files[0]) {
+        selectedBidFile = e.target.files[0];
+        filePill.innerHTML = `
+          <div class="file-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--gold);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>${escapeHtml(selectedBidFile.name)} (${formatFileSize(selectedBidFile.size)})</span>
+          </div>
+        `;
+      }
+    });
+  }
+
+  // Form submit
+  const form = document.getElementById("tenderBidForm");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById("bidSubmitBtn");
+      submitBtn.textContent = "Submitting Proposal...";
+      submitBtn.disabled = true;
+
+      const bidData = {
+        tenderId: document.getElementById("bidFormTenderId").value,
+        tenderRef: document.getElementById("bidFormTenderRef").value,
+        tenderTitle: document.getElementById("bidFormTenderTitle").value,
+        supplierTrackingCode: document.getElementById("bidQuickLookupInput")?.value?.trim() || "",
+        companyName: document.getElementById("bidCompanyName").value.trim(),
+        contactName: document.getElementById("bidContactName").value.trim(),
+        contactEmail: document.getElementById("bidContactEmail").value.trim(),
+        contactPhone: document.getElementById("bidContactPhone").value.trim(),
+        proposedUnitCost: document.getElementById("bidUnitCost").value,
+        currency: document.getElementById("bidCurrency").value,
+        toolingCost: document.getElementById("bidToolingCost").value || 0,
+        leadTimeWeeks: document.getElementById("bidLeadTimeWeeks").value,
+        localContentPct: document.getElementById("bidLocalContentPct").value,
+        technicalNotes: document.getElementById("bidTechnicalNotes").value.trim()
+      };
+
+      try {
+        const fullBid = await submitTenderBid(bidData, selectedBidFile);
+        document.getElementById("bidModalFormScreen").style.display = "none";
+        document.getElementById("bidSuccessScreen").style.display = "block";
+        document.getElementById("bidSuccessCompanyName").textContent = fullBid.companyName;
+        document.getElementById("bidSuccessTenderRef").textContent = fullBid.tenderRef;
+        document.getElementById("bidSuccessCode").textContent = fullBid.bidRef;
+        form.reset();
+        selectedBidFile = null;
+        if (filePill) filePill.innerHTML = "";
+      } catch (err) {
+        alert("Error submitting proposal: " + err.message);
+      } finally {
+        submitBtn.textContent = "Submit Official Tender Proposal →";
+        submitBtn.disabled = false;
       }
     });
   }

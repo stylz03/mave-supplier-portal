@@ -118,17 +118,17 @@ a {
 .display-word {
   position: absolute;
   z-index: 2;
-  /* left compensates the P's left sidebearing so INK starts at 13% W */
-  left: 12.1%;
-  top: 20.2vh;
+  left: 50%;
+  top: 21.5vh;
+  transform: translateX(-50%);
   font-family: "Century Gothic", "Futura", "Avenir Next", sans-serif;
-  font-size: 10.6vw;
+  font-size: clamp(38px, 6.4vw, 88px);
   line-height: 1;
   font-weight: 400;
-  letter-spacing: 0.23em;
+  letter-spacing: 0.16em;
   white-space: nowrap;
   color: transparent;
-  -webkit-text-stroke: 0.1vw rgba(245, 240, 230, 0.92);
+  -webkit-text-stroke: 1px rgba(245, 240, 230, 0.85);
 }
 
 /* Front copy of the display word: sits ABOVE the film canvas so the
@@ -227,18 +227,37 @@ a {
 }
 
 /* ------------------------------------------------------------
-   Layer 4 — UI. Header (STUDY §6a), row center-line y ≈ 8.1% H
+   Layer 4 — UI. Header (Flex row with non-colliding layout)
    ------------------------------------------------------------ */
-/* Wordmark sits on the nav centre-line (8.1% H). Source is 332x54, so
-   the ceiling below keeps it under native width and therefore sharp. */
-.logo {
+header {
   position: absolute;
-  z-index: 4;
-  left: 3.3%;
-  top: 8.1%;
-  transform: translateY(-50%);
-  width: clamp(112px, 10.5vw, 200px);
-  display: block;
+  z-index: 10;
+  top: calc(3.2% + 6px);
+  left: 1.7%;
+  right: 1.7%;
+  width: auto;
+  height: clamp(56px, 6.8vh, 76px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(24px, 2.6vw, 48px);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.header-brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 1.6vw, 26px);
+  flex-shrink: 0;
+}
+
+.logo {
+  position: static;
+  width: clamp(100px, 7.8vw, 136px);
+  display: flex;
+  align-items: center;
+  transform: none;
 }
 
 .logo img {
@@ -248,22 +267,22 @@ a {
 }
 
 .brand {
-  position: absolute;
-  z-index: 4;
-  left: 15.5%;
-  top: 8.1%;
-  transform: translateY(-50%);
+  position: static;
+  transform: none;
   white-space: nowrap;
-  /* hairline divider between wordmark and portal name */
-  padding-left: 1.6vw;
-  border-left: 1px solid rgba(240, 233, 220, 0.22);
+  padding-left: clamp(16px, 1.6vw, 24px);
+  border-left: 1px solid rgba(240, 233, 220, 0.28);
+  height: clamp(20px, 2.2vh, 26px);
+  display: flex;
+  align-items: center;
 }
 
 .brand-name {
-  font-size: var(--t-lead);
-  font-weight: 500;
-  letter-spacing: 0.25em;
+  font-size: clamp(12px, 0.88vw, 14.5px);
+  font-weight: 600;
+  letter-spacing: 0.24em;
   color: #f7f2ea;
+  line-height: 1;
 }
 
 .brand-sub {
@@ -273,34 +292,26 @@ a {
   color: #cabda9;
 }
 
-/* The nav was four absolutely-positioned links at fixed percentages
-   (36.2 / 45.9 / 55.3 / 63.5), so the gaps between them drifted with
-   word length — OVERVIEW and INFRASTRUCTURE are very different widths.
-   A flex row gives one gap value that holds no matter what the labels
-   say, and survives renaming them later. */
 header nav {
-  position: absolute;
-  z-index: 4;
-  top: 8.1%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  position: static;
+  transform: none;
   display: flex;
   align-items: center;
-  gap: clamp(1.5rem, 2.6vw, 3.4rem);
+  gap: clamp(16px, 1.8vw, 32px);
   white-space: nowrap;
+  margin: 0 clamp(10px, 1.4vw, 24px);
 }
 
 .nav-link {
   position: relative;
-  font-size: var(--t-body);
+  font-size: clamp(12px, 0.86vw, 14.5px);
   font-weight: 500;
-  letter-spacing: var(--ls-caps);
-  /* caps tracking adds a trailing space after the last letter; pulling
-     it back keeps the optical gaps equal to the flex gap */
-  margin-right: calc(var(--ls-caps) * -1);
+  letter-spacing: 0.18em;
+  margin-right: calc(0.18em * -1);
   color: var(--ink-dim);
   padding-block: 0.5em;
   transition: color 200ms ease;
+  text-decoration: none;
 }
 
 /* hairline that opens from the centre on hover */
@@ -316,17 +327,13 @@ header nav {
   transition: width 200ms var(--ease-out);
 }
 
-/* Nav is looked at constantly, so the hover stays near-imperceptible:
-   200ms, colour plus a hairline, nothing that moves the label.
-   Gated to real pointers — touch fires a false hover on tap and the
-   underline would stick. */
 @media (hover: hover) and (pointer: fine) {
   .nav-link:hover {
     color: var(--ink);
   }
 
   .nav-link:hover::after {
-    width: calc(100% - var(--ls-caps));
+    width: 100%;
   }
 
   .cta {
@@ -340,27 +347,28 @@ header nav {
   }
 }
 
-/* Dark glassy pill — x 84.3–96.5% W, y 5.6–10.6% H */
+/* Dark glassy pill */
 .cta {
-  position: absolute;
-  z-index: 4;
-  left: 84.3%;
-  top: 5.6%;
-  width: 12.2%;
-  height: 5%;
+  position: static;
+  transform: none;
+  flex-shrink: 0;
+  width: auto;
+  height: auto;
+  padding: clamp(8px, 1vh, 12px) clamp(16px, 1.3vw, 24px);
   border-radius: 100vh;
-  border: 1px solid rgba(240, 233, 220, 0.7);
-  background: rgba(18, 13, 9, 0.35);
-  -webkit-backdrop-filter: blur(0.3vw);
-  backdrop-filter: blur(0.3vw);
-  display: flex;
+  border: 1px solid rgba(240, 233, 220, 0.65);
+  background: rgba(18, 13, 9, 0.45);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--t-body);
+  font-size: clamp(11px, 0.78vw, 13px);
   font-weight: 500;
   letter-spacing: 0.18em;
   color: #f7f2ea;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .cta-arrow {
@@ -711,7 +719,7 @@ header nav {
   }
 
   .display-word {
-    font-size: min(12.5vw, 62px) !important;
+    font-size: min(9.5vw, 44px) !important;
     top: calc(var(--hero-top) + 12vw) !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
@@ -719,21 +727,27 @@ header nav {
   }
 
   /* Header adjustments */
-  .logo { left: 5% !important; top: 3vh !important; width: min(34vw, 180px) !important; transform: none !important; }
-
+  header {
+    height: auto !important;
+    padding: 2.5vh 5% !important;
+  }
+  .header-brand-wrap {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.4vh !important;
+  }
+  .logo { width: min(32vw, 130px) !important; }
   .brand {
-    left: 5% !important; top: 8.2vh !important; transform: none !important;
     padding-left: 0 !important; border-left: 0 !important;
   }
-  .brand-name { font-size: min(3.4vw, 16px) !important; }
+  .brand-name { font-size: min(3vw, 13px) !important; }
 
   /* hide the whole row, not just the links, so the flex gaps go too */
   header nav { display: none !important; }
 
   .cta {
-    left: auto !important; right: 5% !important; top: 3vh !important;
-    width: 40% !important; height: 4.4vh !important;
-    font-size: min(3vw, 14px) !important; transform: none !important;
+    padding: 8px 16px !important;
+    font-size: min(2.8vw, 12px) !important;
   }
 
   /* Sits directly under the hero band; the gap is one value, not a

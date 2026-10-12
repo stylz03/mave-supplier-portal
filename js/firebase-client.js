@@ -31,6 +31,12 @@ import {
   uploadBytes,
   getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 // --- Production Firebase Configuration (mave-invest-prod) ---
 // Note: To protect against public scanner alerts on open repos,
@@ -50,6 +56,7 @@ export const FIREBASE_CONFIG = {
 let app = null;
 let db = null;
 let storage = null;
+let auth = null;
 let isConnected = false;
 
 function resolveApiKey() {
@@ -76,6 +83,7 @@ export function initFirebase(customKey) {
     }
     db = getFirestore(app);
     storage = getStorage(app);
+    try { auth = getAuth(app); } catch (e) {}
     isConnected = true;
     console.log("[Firebase] Initialized connection to mave-invest-prod");
     attachAllFirestoreListeners();
@@ -90,6 +98,7 @@ export function initFirebase(customKey) {
       }
       db = getFirestore(app);
       storage = getStorage(app);
+      try { auth = getAuth(app); } catch (e) {}
       isConnected = true;
       attachAllFirestoreListeners();
       return true;
@@ -135,7 +144,7 @@ export { app, db, storage, isConnected };
 // ============================================================
 
 export const DEFAULT_PAGE_CONTENT = {
-  displayWord: "PARTNERS",
+  displayWord: "SUPPLIERS",
   kicker: "01 / STRATEGIC PARTNERS",
   headline: "BUILDING THE FUTURE.",
   tagline: "A sovereign supply chain for African mobility.",
@@ -174,6 +183,19 @@ export const DEFAULT_PAGE_CONTENT = {
   },
   contactEmail: "suppliers@mave.africa",
   contactPhone: "+27 (0) 11 568 9300",
+  // Qualification Fees & Payment Controls
+  tierFeesEnabled: false, // Client does not want to charge yet; fees waived / free pilot onboarding
+  feeWaivedLabel: "Fee Waived — AfCFTA Pilot Onboarding",
+  stripeConfig: {
+    enabled: false,
+    publishableKey: "",
+    testMode: true
+  },
+  resendConfig: {
+    enabled: true,
+    fromEmail: "MAVE <onboarding@mave.africa>",
+    replyTo: "suppliers@mave.africa"
+  },
   lastUpdated: new Date().toISOString()
 };
 
@@ -290,6 +312,57 @@ export const DEFAULT_TIERS = [
   }
 ];
 
+export const DEFAULT_TENDERS = [
+  {
+    id: "rfp-chassis-01",
+    ref: "RFP-2026-CHASSIS-01",
+    title: "Villager EV 800-Ton Monocoque Die Stamping & Floor Pan Tooling",
+    category: "Body Shell & Chassis (Tier 1 & 2)",
+    volume: "15,000 sets / year (3-Year Master Off-take)",
+    localContentPct: 60,
+    estimatedValue: "R 180,000,000 / $9.8M USD",
+    location: "South Africa / East Africa SEZ Hubs",
+    deadline: "2026-12-15",
+    status: "open",
+    scope: "Design, tooling fabrication, and progressive die stamping of monocoque structural floor rails, crossmembers, and high-strength cold-rolled steel stampings for the MUREZA Villager platform.",
+    requirements: "IATF 16949 / ISO 9001 certified or audited readiness, minimum 60% African raw material value addition, CMM dimensional inspection capability.",
+    bidsCount: 0,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: "rfp-harness-02",
+    ref: "RFP-2026-HV-HARNESS-02",
+    title: "High-Voltage 400V Powertrain Wire Harness & Integrated PDU Assemblies",
+    category: "Electrical & Powertrain (Tier 1 & 2)",
+    volume: "20,000 vehicle harness kits / year",
+    localContentPct: 55,
+    estimatedValue: "R 95,000,000 / $5.2M USD",
+    location: "Kenya / Ethiopia SEZ Assembly Hubs",
+    deadline: "2026-11-30",
+    status: "open",
+    scope: "Fabrication of shielded 400V orange traction wire harnesses, CAN-bus sub-harnesses, IP67 sealed connectors, and high-voltage power distribution units (PDU). Sourcing of Zambian or Congolese refined copper conductor.",
+    requirements: "High-voltage automotive wire harness assembly experience, automated crimp pull-force testing, continuity test jigs.",
+    bidsCount: 0,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: "rfp-cabin-03",
+    ref: "RFP-2026-CABIN-TRIM-03",
+    title: "Modular Commuter Passenger Seating & Thermoformed Dashboard Trim",
+    category: "Cockpit & Interior Trim (Tier 2)",
+    volume: "12,000 ship sets / year",
+    localContentPct: 50,
+    estimatedValue: "R 48,000,000 / $2.6M USD",
+    location: "Southern African SEZ Logistics Center",
+    deadline: "2027-01-20",
+    status: "open",
+    scope: "Lightweight modular passenger seating with heavy-duty automotive upholstery, tubular steel frames, ISOFIX child seat anchorage, and soft-touch injection-molded instrument cluster bezels.",
+    requirements: "UN ECE R14 / R17 crash testing compliance documentation, fire-retardant fabric certification, domestic African recycled plastics blending.",
+    bidsCount: 0,
+    createdAt: new Date().toISOString()
+  }
+];
+
 // ============================================================
 // LOCAL STORAGE RESILIENCE HELPERS
 // ============================================================
@@ -298,7 +371,9 @@ const STORAGE_KEYS = {
   CONTENT: "mureza_supplier_content_v2",
   TIERS: "mureza_supplier_tiers_v2",
   SUBMISSIONS: "mureza_supplier_submissions_v2",
-  NOTIFICATIONS: "mureza_supplier_notifications_v2"
+  NOTIFICATIONS: "mureza_supplier_notifications_v2",
+  TENDERS: "mureza_supplier_tenders_v2",
+  BIDS: "mureza_supplier_bids_v2"
 };
 
 function readLocal(key, fallback) {
@@ -326,14 +401,18 @@ const subscribers = {
   content: new Set(),
   tiers: new Set(),
   submissions: new Set(),
-  notifications: new Set()
+  notifications: new Set(),
+  tenders: new Set(),
+  bids: new Set()
 };
 
 const firestoreUnsubs = {
   content: null,
   tiers: null,
   submissions: null,
-  notifications: null
+  notifications: null,
+  tenders: null,
+  bids: null
 };
 
 function emitSubscribers(type, data) {
@@ -684,6 +763,18 @@ export async function submitSupplierRegistration(formData, files = []) {
     }
   }
 
+  // 4. Trigger automated Resend email confirmation
+  if (submission.contactEmail) {
+    sendSupplierEmail({
+      type: "registration_received",
+      to: submission.contactEmail,
+      companyName: submission.companyName,
+      contactName: submission.contactName,
+      trackingCode: submission.trackingCode,
+      tierTitle: submission.selectedTier.toUpperCase()
+    }).catch((e) => console.warn("Email dispatch notice:", e));
+  }
+
   return submission;
 }
 
@@ -711,6 +802,20 @@ export async function updateSubmission(id, patch) {
     current[idx] = { ...current[idx], ...patch, updatedAt: new Date().toISOString() };
     writeLocal(STORAGE_KEYS.SUBMISSIONS, current);
     emitSubscribers("submissions", current);
+  }
+
+  // Trigger status update email if contact email is present
+  if (current[idx]?.contactEmail && (patch.status || patch.assignedTier || patch.reviewerNotes)) {
+    sendSupplierEmail({
+      type: "status_update",
+      to: current[idx].contactEmail,
+      companyName: current[idx].companyName,
+      contactName: current[idx].contactName,
+      trackingCode: current[idx].trackingCode,
+      tierTitle: (patch.assignedTier || current[idx].assignedTier || "").toUpperCase(),
+      status: patch.status || current[idx].status,
+      reviewerNotes: patch.reviewerNotes || ""
+    }).catch((e) => console.warn("Email status update notice:", e));
   }
 
   // Update Firestore
@@ -785,3 +890,332 @@ export async function markNotificationRead(id) {
     }
   }
 }
+
+// ============================================================
+// 6. RESEND EMAIL DISPATCH API
+// ============================================================
+
+export async function sendSupplierEmail(payload) {
+  try {
+    const res = await fetch("/api/send-supplier-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    console.log("[Email Service] Dispatched:", data);
+    return data;
+  } catch (err) {
+    console.warn("[Email Service] Notice:", err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+// ============================================================
+// 7. ADMIN AUTHENTICATION HELPERS (FIREBASE AUTH)
+// ============================================================
+
+export async function loginAdmin(email, password) {
+  if (!auth) {
+    // If running offline or without credentials, allow dev session
+    const devAdmin = { email, displayName: "MUREZA Procurement Lead", uid: "dev-admin-" + Date.now() };
+    localStorage.setItem("mureza_cms_admin_session", JSON.stringify(devAdmin));
+    return devAdmin;
+  }
+  const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+  const adminObj = { email: cred.user.email, uid: cred.user.uid };
+  localStorage.setItem("mureza_cms_admin_session", JSON.stringify(adminObj));
+  return cred.user;
+}
+
+export async function logoutAdmin() {
+  localStorage.removeItem("mureza_cms_admin_session");
+  if (auth) {
+    try {
+      await signOut(auth);
+    } catch (e) {}
+  }
+  return true;
+}
+
+export function getCurrentAdminUser() {
+  if (auth?.currentUser) return auth.currentUser;
+  try {
+    const raw = localStorage.getItem("mureza_cms_admin_session");
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function onAdminAuthChanged(callback) {
+  // Check local session first
+  const cached = getCurrentAdminUser();
+  if (cached) callback(cached);
+
+  if (auth) {
+    return onAuthStateChanged(auth, (user) => {
+      if (user) {
+        localStorage.setItem("mureza_cms_admin_session", JSON.stringify({ email: user.email, uid: user.uid }));
+        callback(user);
+      } else {
+        localStorage.removeItem("mureza_cms_admin_session");
+        callback(null);
+      }
+    });
+  }
+  return () => {};
+}
+
+// ============================================================
+// 8. OEM TENDERS & BIDDING (RFP) API
+// ============================================================
+
+export function onTendersSnapshot(callback) {
+  subscribers.tenders.add(callback);
+  const current = readLocal(STORAGE_KEYS.TENDERS, DEFAULT_TENDERS);
+  callback(current);
+
+  if (db && !firestoreUnsubs.tenders) {
+    try {
+      const q = collection(db, "supplierTenders");
+      firestoreUnsubs.tenders = onSnapshot(
+        q,
+        (snap) => {
+          if (!snap.empty) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            writeLocal(STORAGE_KEYS.TENDERS, list);
+            emitSubscribers("tenders", list);
+          }
+        },
+        (err) => console.warn("[Firestore] Tenders subscription notice:", err.message)
+      );
+    } catch (e) {
+      console.warn("Firestore tenders listen skipped:", e);
+    }
+  }
+
+  return () => {
+    subscribers.tenders.delete(callback);
+    if (subscribers.tenders.size === 0 && firestoreUnsubs.tenders) {
+      firestoreUnsubs.tenders();
+      firestoreUnsubs.tenders = null;
+    }
+  };
+}
+
+export function onBidsSnapshot(callback) {
+  subscribers.bids.add(callback);
+  const current = readLocal(STORAGE_KEYS.BIDS, []);
+  callback(current);
+
+  if (db && !firestoreUnsubs.bids) {
+    try {
+      const q = collection(db, "supplierBids");
+      firestoreUnsubs.bids = onSnapshot(
+        q,
+        (snap) => {
+          if (!snap.empty) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            writeLocal(STORAGE_KEYS.BIDS, list);
+            emitSubscribers("bids", list);
+          }
+        },
+        (err) => console.warn("[Firestore] Bids subscription notice:", err.message)
+      );
+    } catch (e) {
+      console.warn("Firestore bids listen skipped:", e);
+    }
+  }
+
+  return () => {
+    subscribers.bids.delete(callback);
+    if (subscribers.bids.size === 0 && firestoreUnsubs.bids) {
+      firestoreUnsubs.bids();
+      firestoreUnsubs.bids = null;
+    }
+  };
+}
+
+export async function seedDefaultTenders() {
+  writeLocal(STORAGE_KEYS.TENDERS, DEFAULT_TENDERS);
+  emitSubscribers("tenders", DEFAULT_TENDERS);
+
+  if (!db) return;
+  try {
+    for (const tender of DEFAULT_TENDERS) {
+      await setDoc(doc(db, "supplierTenders", tender.id), tender, { merge: true });
+    }
+  } catch (err) {
+    console.warn("[Firebase] Seed tenders note:", err.message);
+  }
+}
+
+export async function saveTender(tenderData) {
+  const id = tenderData.id || `rfp_${Date.now()}`;
+  const fullTender = {
+    ...tenderData,
+    id,
+    updatedAt: new Date().toISOString()
+  };
+
+  const current = readLocal(STORAGE_KEYS.TENDERS, DEFAULT_TENDERS);
+  const idx = current.findIndex((t) => t.id === id);
+  if (idx >= 0) current[idx] = fullTender;
+  else current.unshift(fullTender);
+
+  writeLocal(STORAGE_KEYS.TENDERS, current);
+  emitSubscribers("tenders", current);
+
+  if (db) {
+    try {
+      await setDoc(doc(db, "supplierTenders", id), fullTender, { merge: true });
+    } catch (err) {
+      console.warn("[Firebase] Error saving tender to Firestore:", err.message);
+    }
+  }
+  return fullTender;
+}
+
+export async function deleteTender(id) {
+  const current = readLocal(STORAGE_KEYS.TENDERS, DEFAULT_TENDERS).filter((t) => t.id !== id);
+  writeLocal(STORAGE_KEYS.TENDERS, current);
+  emitSubscribers("tenders", current);
+
+  if (db) {
+    try {
+      await deleteDoc(doc(db, "supplierTenders", id));
+    } catch (err) {
+      console.warn("[Firebase] Error deleting tender:", err.message);
+    }
+  }
+}
+
+export async function submitTenderBid(bidData, proposalFile = null) {
+  const timestamp = Date.now();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  const bidRef = `BID-2026-${rand}`;
+
+  let proposalDoc = null;
+  if (proposalFile) {
+    try {
+      proposalDoc = await uploadSupplierDocument(proposalFile, bidData.companyName || "bidder");
+    } catch (e) {
+      console.warn("Proposal upload notice:", e);
+    }
+  }
+
+  const fullBid = {
+    id: `bid_${timestamp}_${rand}`,
+    bidRef,
+    tenderId: bidData.tenderId,
+    tenderRef: bidData.tenderRef,
+    tenderTitle: bidData.tenderTitle,
+    supplierTrackingCode: bidData.supplierTrackingCode || "",
+    companyName: bidData.companyName?.trim() || "Supplier Applicant",
+    contactName: bidData.contactName?.trim() || "",
+    contactEmail: bidData.contactEmail?.trim() || "",
+    contactPhone: bidData.contactPhone?.trim() || "",
+    proposedUnitCost: Number(bidData.proposedUnitCost) || 0,
+    currency: bidData.currency || "ZAR",
+    toolingCost: Number(bidData.toolingCost) || 0,
+    leadTimeWeeks: Number(bidData.leadTimeWeeks) || 12,
+    localContentPct: Number(bidData.localContentPct) || 50,
+    technicalNotes: bidData.technicalNotes?.trim() || "",
+    proposalDoc,
+    status: "submitted",
+    reviewerNotes: "",
+    submittedAt: new Date().toISOString()
+  };
+
+  const bids = readLocal(STORAGE_KEYS.BIDS, []);
+  bids.unshift(fullBid);
+  writeLocal(STORAGE_KEYS.BIDS, bids);
+  emitSubscribers("bids", bids);
+
+  const tenders = readLocal(STORAGE_KEYS.TENDERS, DEFAULT_TENDERS);
+  const tIdx = tenders.findIndex((t) => t.id === fullBid.tenderId);
+  if (tIdx >= 0) {
+    tenders[tIdx].bidsCount = (tenders[tIdx].bidsCount || 0) + 1;
+    writeLocal(STORAGE_KEYS.TENDERS, tenders);
+    emitSubscribers("tenders", tenders);
+  }
+
+  addNotification({
+    title: "New Tender Bid Submitted",
+    message: `${fullBid.companyName} submitted proposal for ${fullBid.tenderRef}`,
+    trackingCode: fullBid.bidRef,
+    type: "tender_bid"
+  });
+
+  if (db) {
+    try {
+      await setDoc(doc(db, "supplierBids", fullBid.id), {
+        ...fullBid,
+        createdAt: serverTimestamp()
+      });
+      if (tIdx >= 0) {
+        await updateDoc(doc(db, "supplierTenders", fullBid.tenderId), {
+          bidsCount: tenders[tIdx].bidsCount
+        });
+      }
+    } catch (err) {
+      console.warn("[Firebase] Could not save bid to Firestore, saved locally:", err.message);
+    }
+  }
+
+  if (fullBid.contactEmail) {
+    sendSupplierEmail({
+      type: "tender_bid_received",
+      to: fullBid.contactEmail,
+      companyName: fullBid.companyName,
+      contactName: fullBid.contactName,
+      trackingCode: fullBid.bidRef,
+      tierTitle: fullBid.tenderTitle,
+      reviewerNotes: `Your tender proposal for ${fullBid.tenderRef} (${fullBid.tenderTitle}) has been submitted to the MUREZA OEM Procurement Committee.`
+    }).catch((e) => console.warn("Email dispatch notice:", e));
+  }
+
+  return fullBid;
+}
+
+export async function updateBidStatus(bidId, status, notes = "") {
+  const bids = readLocal(STORAGE_KEYS.BIDS, []);
+  const idx = bids.findIndex((b) => b.id === bidId);
+  if (idx < 0) return null;
+
+  bids[idx].status = status;
+  bids[idx].reviewerNotes = notes;
+  bids[idx].updatedAt = new Date().toISOString();
+
+  writeLocal(STORAGE_KEYS.BIDS, bids);
+  emitSubscribers("bids", bids);
+
+  if (db) {
+    try {
+      await updateDoc(doc(db, "supplierBids", bidId), {
+        status,
+        reviewerNotes: notes,
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.warn("[Firebase] Error updating bid status in Firestore:", err.message);
+    }
+  }
+
+  if (bids[idx].contactEmail && (status === "awarded" || status === "shortlisted")) {
+    sendSupplierEmail({
+      type: "tender_award",
+      to: bids[idx].contactEmail,
+      companyName: bids[idx].companyName,
+      contactName: bids[idx].contactName,
+      trackingCode: bids[idx].bidRef,
+      tierTitle: bids[idx].tenderTitle,
+      status: status.toUpperCase(),
+      reviewerNotes: notes || `Your bid for ${bids[idx].tenderRef} has been ${status.toUpperCase()} by the MUREZA Procurement Committee.`
+    }).catch((e) => console.warn("Email dispatch notice:", e));
+  }
+
+  return bids[idx];
+}
+

@@ -25,13 +25,31 @@
       const modal = document.getElementById("regModal");
       if (modal) modal.classList.remove("open");
     };
+    window.openTenderBidModal = window.openTenderBidModal || function(id) {
+      const modal = document.getElementById("tenderBidModal");
+      if (modal) modal.classList.add("open");
+      if (id) {
+        const idInput = document.getElementById("bidFormTenderId");
+        if (idInput) idInput.value = id;
+      }
+    };
+    window.closeTenderBidModal = window.closeTenderBidModal || function() {
+      const modal = document.getElementById("tenderBidModal");
+      if (modal) modal.classList.remove("open");
+    };
     window.closeDetailsModal = window.closeDetailsModal || function() {
       const modal = document.getElementById("vehicleDetailsModal");
       if (modal) modal.classList.remove("open");
     };
     window.scrollToSection = window.scrollToSection || function(id) {
       const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: "smooth" });
+      if (el) {
+        const y = el.getBoundingClientRect().top + window.pageYOffset - 30;
+        window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      } else {
+        const hero = document.getElementById("heroContainer");
+        if (hero) window.scrollTo({ top: hero.offsetHeight, behavior: "smooth" });
+      }
     };
     window.scrollToTier = window.scrollToTier || function(id) {
       window.scrollToSection("tiers-section");
@@ -50,7 +68,7 @@
       <img class="bg" src="assets/film-van/frame_0001.jpg" alt="MUREZA Villager EV">
 
       <!-- 2. Giant outline display word (synced with CMS) -->
-      <h1 class="display-word">PARTNERS</h1>
+      <h1 class="display-word">SUPPLIERS</h1>
 
       <!-- 3b. Scroll-driven dismantling film (240 frames scrubbed) -->
       <canvas class="film" id="film" aria-hidden="true"
@@ -58,27 +76,29 @@
               data-prefix="frame_" data-ext=".jpg"></canvas>
 
       <!-- 3c. display word repeated above film for depth effect -->
-      <p class="display-word display-word--front" id="wordFront" aria-hidden="true">PARTNERS</p>
+      <p class="display-word display-word--front" id="wordFront" aria-hidden="true">SUPPLIERS</p>
 
       <!-- 4. UI Layer -->
       <header>
-        <a class="logo" href="https://mave.africa/" aria-label="MAVE — home">
-          <img src="assets/brand/mave_logo.png" alt="MAVE" width="332" height="54">
-        </a>
+        <div class="header-brand-wrap">
+          <a class="logo" href="https://mave.africa/" aria-label="MAVE — home">
+            <img src="assets/brand/mave_logo.png" alt="MAVE" width="140" height="auto">
+          </a>
 
-        <div class="brand">
-          <p class="brand-name">SUPPLIER PORTAL</p>
+          <div class="brand">
+            <p class="brand-name">SUPPLIER PORTAL</p>
+          </div>
         </div>
 
         <nav aria-label="Primary">
-          <a href="#strategic-section" class="nav-link nav-services">OVERVIEW</a>
-          <a href="#tiers-section" class="nav-link nav-performance">PARTNERS</a>
-          <a href="#strategic-section" class="nav-link nav-atelier">INFRASTRUCTURE</a>
-          <a href="#tracking-section" class="nav-link nav-journal">TRACKING</a>
-          <a href="cms.html" class="nav-link" style="color: var(--gold);" target="_blank">CMS ↗</a>
+          <a href="#strategic-section" class="nav-link nav-services" onclick="window.scrollToSection('strategic-section'); return false;">OVERVIEW</a>
+          <a href="#tiers-section" class="nav-link nav-performance" onclick="window.scrollToSection('tiers-section'); return false;">SUPPLIERS</a>
+          <a href="#tenders-section" class="nav-link nav-tenders" onclick="window.scrollToSection('tenders-section'); return false;">TENDERS</a>
+          <a href="#strategic-section" class="nav-link nav-atelier" onclick="window.scrollToSection('strategic-section'); return false;">INFRASTRUCTURE</a>
+          <a href="#tracking-section" class="nav-link nav-journal" onclick="window.scrollToSection('tracking-section'); return false;">TRACKING</a>
         </nav>
 
-        <a href="#regModal" class="cta">
+        <a href="#regModal" class="cta" onclick="window.openRegistrationForTier(); return false;">
           JOIN NETWORK&nbsp;&nbsp;<span class="cta-arrow">&#8599;</span>
         </a>
       </header>
@@ -187,7 +207,130 @@
 
       <!-- Dynamic Tiers Grid (Managed via CMS & Firestore) -->
       <div class="portal-tiers-grid" id="portalTiersGrid">
-        <!-- Rendered dynamically by js/portal.js -->
+        <div class="portal-tier-card" id="tier-card-tier-1" style="border-top: 3px solid #cf8f45;">
+          <div class="portal-tier-top">
+            <span class="portal-tier-badge" style="color: #cf8f45;">TIER 1</span>
+            <span class="portal-tier-capacity">9 of 12 Slots Open</span>
+          </div>
+          <h3 class="portal-tier-title">TIER 1</h3>
+          <p class="portal-tier-sub" style="color: #cf8f45;">MAJOR SYSTEMS</p>
+          <div class="portal-tier-pricing-box">
+            <div>
+              <div class="portal-pricing-term">AfCFTA Pilot Onboarding</div>
+              <div class="portal-pricing-amount" style="color: var(--gold-light);">Fee Waived <span style="font-size: 11px; font-weight: normal; color: var(--ink-faint);">(100% Sponsored)</span></div>
+            </div>
+            <span style="font-size: 10px; letter-spacing: 0.1em; color: #68d391; font-weight: 700; text-transform: uppercase;">PILOT ONBOARDING</span>
+          </div>
+          <div class="portal-tier-focus-title">Target Components &amp; Scope:</div>
+          <ul class="portal-tier-focus-list">
+            <li>Body stampings &amp; outer panels</li>
+            <li>Powertrain systems &amp; EV traction drives</li>
+            <li>Electrical architecture (ECU, harnesses)</li>
+            <li>HVAC &amp; interior cockpit modules</li>
+            <li>Braking, suspension &amp; steering assemblies</li>
+          </ul>
+          <button class="portal-tier-cta-btn" onclick="window.openRegistrationForTier('tier-1')">Register for TIER 1 &nbsp; ↗</button>
+        </div>
+
+        <div class="portal-tier-card" id="tier-card-tier-2" style="border-top: 3px solid #c29b68;">
+          <div class="portal-tier-top">
+            <span class="portal-tier-badge" style="color: #c29b68;">TIER 2</span>
+            <span class="portal-tier-capacity">8 of 10 Slots Open</span>
+          </div>
+          <h3 class="portal-tier-title">TIER 2</h3>
+          <p class="portal-tier-sub" style="color: #c29b68;">PROCESSING &amp; SUB-ASSEMBLY</p>
+          <div class="portal-tier-pricing-box">
+            <div>
+              <div class="portal-pricing-term">AfCFTA Pilot Onboarding</div>
+              <div class="portal-pricing-amount" style="color: var(--gold-light);">Fee Waived <span style="font-size: 11px; font-weight: normal; color: var(--ink-faint);">(100% Sponsored)</span></div>
+            </div>
+            <span style="font-size: 10px; letter-spacing: 0.1em; color: #68d391; font-weight: 700; text-transform: uppercase;">PILOT ONBOARDING</span>
+          </div>
+          <div class="portal-tier-focus-title">Target Components &amp; Scope:</div>
+          <ul class="portal-tier-focus-list">
+            <li>Steel &amp; aluminium stamping / extrusion</li>
+            <li>Thermoplastic injection moulding</li>
+            <li>Rubber compounds, seals &amp; weatherstrips</li>
+            <li>Automotive safety glass &amp; glazing</li>
+            <li>Wiring sub-components, relays &amp; sensors</li>
+          </ul>
+          <button class="portal-tier-cta-btn" onclick="window.openRegistrationForTier('tier-2')">Register for TIER 2 &nbsp; ↗</button>
+        </div>
+
+        <div class="portal-tier-card" id="tier-card-tier-3" style="border-top: 3px solid #b8a88a;">
+          <div class="portal-tier-top">
+            <span class="portal-tier-badge" style="color: #b8a88a;">TIER 3</span>
+            <span class="portal-tier-capacity">12 of 15 Slots Open</span>
+          </div>
+          <h3 class="portal-tier-title">TIER 3</h3>
+          <p class="portal-tier-sub" style="color: #b8a88a;">RAW MATERIALS &amp; FEEDSTOCKS</p>
+          <div class="portal-tier-pricing-box">
+            <div>
+              <div class="portal-pricing-term">AfCFTA Pilot Onboarding</div>
+              <div class="portal-pricing-amount" style="color: var(--gold-light);">Fee Waived <span style="font-size: 11px; font-weight: normal; color: var(--ink-faint);">(100% Sponsored)</span></div>
+            </div>
+            <span style="font-size: 10px; letter-spacing: 0.1em; color: #68d391; font-weight: 700; text-transform: uppercase;">PILOT ONBOARDING</span>
+          </div>
+          <div class="portal-tier-focus-title">Target Components &amp; Scope:</div>
+          <ul class="portal-tier-focus-list">
+            <li>Raw lithium, copper &amp; manganese mineral supply</li>
+            <li>Coil steel &amp; sheet aluminium smelters</li>
+            <li>Paints, electro-deposition coatings &amp; primers</li>
+            <li>Cast iron &amp; aluminium foundries</li>
+            <li>Engineering resins &amp; petrochemical polymers</li>
+          </ul>
+          <button class="portal-tier-cta-btn" onclick="window.openRegistrationForTier('tier-3')">Register for TIER 3 &nbsp; ↗</button>
+        </div>
+
+        <div class="portal-tier-card" id="tier-card-tech" style="border-top: 3px solid #8fa89b;">
+          <div class="portal-tier-top">
+            <span class="portal-tier-badge" style="color: #8fa89b;">TECH</span>
+            <span class="portal-tier-capacity">4 of 5 Slots Open</span>
+          </div>
+          <h3 class="portal-tier-title">TECH</h3>
+          <p class="portal-tier-sub" style="color: #8fa89b;">SOFTWARE &amp; HOMOLOGATION</p>
+          <div class="portal-tier-pricing-box">
+            <div>
+              <div class="portal-pricing-term">AfCFTA Pilot Onboarding</div>
+              <div class="portal-pricing-amount" style="color: var(--gold-light);">Fee Waived <span style="font-size: 11px; font-weight: normal; color: var(--ink-faint);">(100% Sponsored)</span></div>
+            </div>
+            <span style="font-size: 10px; letter-spacing: 0.1em; color: #68d391; font-weight: 700; text-transform: uppercase;">PILOT ONBOARDING</span>
+          </div>
+          <div class="portal-tier-focus-title">Target Components &amp; Scope:</div>
+          <ul class="portal-tier-focus-list">
+            <li>Vehicle CAD/CAE modeling &amp; simulation</li>
+            <li>Tooling, jig &amp; stamping die makers</li>
+            <li>Robotics, automation &amp; line integration</li>
+            <li>Homologation, crash testing &amp; EMC validation</li>
+            <li>Embedded telematics &amp; software engineering</li>
+          </ul>
+          <button class="portal-tier-cta-btn" onclick="window.openRegistrationForTier('tech')">Register for TECH &nbsp; ↗</button>
+        </div>
+
+        <div class="portal-tier-card" id="tier-card-infra" style="border-top: 3px solid #7a92a3;">
+          <div class="portal-tier-top">
+            <span class="portal-tier-badge" style="color: #7a92a3;">INFRA</span>
+            <span class="portal-tier-capacity">6 of 8 Slots Open</span>
+          </div>
+          <h3 class="portal-tier-title">INFRA.</h3>
+          <p class="portal-tier-sub" style="color: #7a92a3;">SEZ &amp; POWER</p>
+          <div class="portal-tier-pricing-box">
+            <div>
+              <div class="portal-pricing-term">AfCFTA Pilot Onboarding</div>
+              <div class="portal-pricing-amount" style="color: var(--gold-light);">Fee Waived <span style="font-size: 11px; font-weight: normal; color: var(--ink-faint);">(100% Sponsored)</span></div>
+            </div>
+            <span style="font-size: 10px; letter-spacing: 0.1em; color: #68d391; font-weight: 700; text-transform: uppercase;">PILOT ONBOARDING</span>
+          </div>
+          <div class="portal-tier-focus-title">Target Components &amp; Scope:</div>
+          <ul class="portal-tier-focus-list">
+            <li>Special Economic Zone industrial park sites</li>
+            <li>Dedicated 20–60 MW industrial power substations</li>
+            <li>Multimodal port, dry port &amp; rail transit links</li>
+            <li>Industrial water treatment &amp; waste management</li>
+            <li>Telecommunications &amp; high-speed fiber backhaul</li>
+          </ul>
+          <button class="portal-tier-cta-btn" onclick="window.openRegistrationForTier('infra')">Register for INFRA. &nbsp; ↗</button>
+        </div>
       </div>
 
       <!-- 2. Strategic Context & AfCFTA Section (Managed via CMS) -->
@@ -225,9 +368,143 @@
         <!-- Rendered dynamically by js/portal.js -->
       </div>
 
-      <!-- 3. Application Tracking Section (Core Requirement) -->
+      <!-- 4. Active OEM Tenders & RFPs Section -->
+      <div id="tenders-section" class="portal-section-head" style="margin-top: 80px;">
+        <span class="portal-kicker">03 / PROCUREMENT &amp; TENDERING</span>
+        <h2 class="portal-title">Open OEM Tenders &amp; RFPs</h2>
+        <p class="portal-subtitle">
+          Submit competitive proposals and bid on localized manufacturing contracts for the MUREZA Villager platform under the AfCFTA procurement framework.
+        </p>
+      </div>
+
+      <!-- Tenders Filter Pills -->
+      <div class="tenders-filter-row">
+        <button type="button" class="tender-filter-btn active" data-filter="all">All Tenders (<span id="portalTendersCountAll">3</span>)</button>
+        <button type="button" class="tender-filter-btn" data-filter="Body Shell &amp; Chassis">Body &amp; Stamping</button>
+        <button type="button" class="tender-filter-btn" data-filter="Electrical &amp; Powertrain">Electrical &amp; Powertrain</button>
+        <button type="button" class="tender-filter-btn" data-filter="Cockpit &amp; Interior Trim">Cockpit &amp; Interior</button>
+      </div>
+
+      <!-- Tenders Grid -->
+      <div class="tenders-grid" id="portalTendersContainer">
+        <div class="tender-card">
+          <div>
+            <div class="tender-header-row">
+              <span class="tender-ref-badge">RFP-2026-CHASSIS-01</span>
+              <span class="tender-status-badge">OPEN</span>
+            </div>
+            <h3 class="tender-title">Villager EV 800-Ton Monocoque Die Stamping &amp; Floor Pan Tooling</h3>
+            <p class="tender-category">Body Shell &amp; Chassis (Tier 1 &amp; 2)</p>
+            <div class="tender-meta-grid">
+              <div>
+                <div class="tender-meta-label">Annual Volume</div>
+                <div class="tender-meta-val">15,000 sets / year (3-Year Master Off-take)</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">AfCFTA Local Content</div>
+                <div class="tender-meta-val" style="color: var(--gold);">Min. 60%</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">Est. Package Value</div>
+                <div class="tender-meta-val">R 180,000,000 / $9.8M USD</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">Delivery SEZ Hub</div>
+                <div class="tender-meta-val">South Africa / East Africa SEZ Hubs</div>
+              </div>
+            </div>
+            <p class="tender-scope-text">Design, tooling fabrication, and progressive die stamping of monocoque structural floor rails, crossmembers, and high-strength cold-rolled steel stampings for the MUREZA Villager platform.</p>
+          </div>
+          <div class="tender-action-row">
+            <div class="tender-deadline-box">
+              Bids Close: <span class="tender-deadline-val">15 Dec 2026</span>
+            </div>
+            <button type="button" class="portal-tier-cta-btn" style="width: auto; padding: 10px 18px; font-size: 11px;" onclick="window.openTenderBidModal('rfp-chassis-01')">
+              Submit Proposal &rarr;
+            </button>
+          </div>
+        </div>
+
+        <div class="tender-card">
+          <div>
+            <div class="tender-header-row">
+              <span class="tender-ref-badge">RFP-2026-HV-HARNESS-02</span>
+              <span class="tender-status-badge">OPEN</span>
+            </div>
+            <h3 class="tender-title">High-Voltage 400V Powertrain Wire Harness &amp; Integrated PDU Assemblies</h3>
+            <p class="tender-category">Electrical &amp; Powertrain (Tier 1 &amp; 2)</p>
+            <div class="tender-meta-grid">
+              <div>
+                <div class="tender-meta-label">Annual Volume</div>
+                <div class="tender-meta-val">20,000 vehicle harness kits / year</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">AfCFTA Local Content</div>
+                <div class="tender-meta-val" style="color: var(--gold);">Min. 55%</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">Est. Package Value</div>
+                <div class="tender-meta-val">R 95,000,000 / $5.2M USD</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">Delivery SEZ Hub</div>
+                <div class="tender-meta-val">Kenya / Ethiopia SEZ Assembly Hubs</div>
+              </div>
+            </div>
+            <p class="tender-scope-text">Supply and assembly of automotive-grade shielded high-voltage 400V cabling, Power Distribution Units (PDU), busbars, and low-voltage body harness looms with automotive sealed connectors.</p>
+          </div>
+          <div class="tender-action-row">
+            <div class="tender-deadline-box">
+              Bids Close: <span class="tender-deadline-val">30 Nov 2026</span>
+            </div>
+            <button type="button" class="portal-tier-cta-btn" style="width: auto; padding: 10px 18px; font-size: 11px;" onclick="window.openTenderBidModal('rfp-harness-02')">
+              Submit Proposal &rarr;
+            </button>
+          </div>
+        </div>
+
+        <div class="tender-card">
+          <div>
+            <div class="tender-header-row">
+              <span class="tender-ref-badge">RFP-2026-CABIN-TRIM-03</span>
+              <span class="tender-status-badge">OPEN</span>
+            </div>
+            <h3 class="tender-title">Commuter Seating Frames, Modular Dash Injection Moldings &amp; Interior Assemblies</h3>
+            <p class="tender-category">Cockpit &amp; Interior Trim (Tier 1 &amp; 2)</p>
+            <div class="tender-meta-grid">
+              <div>
+                <div class="tender-meta-label">Annual Volume</div>
+                <div class="tender-meta-val">15,000 commuter shipsets / year</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">AfCFTA Local Content</div>
+                <div class="tender-meta-val" style="color: var(--gold);">Min. 50%</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">Est. Package Value</div>
+                <div class="tender-meta-val">R 60,000,000 / $3.3M USD</div>
+              </div>
+              <div>
+                <div class="tender-meta-label">Delivery SEZ Hub</div>
+                <div class="tender-meta-val">South Africa SEZ Assembly Hub</div>
+              </div>
+            </div>
+            <p class="tender-scope-text">Fabrication of high-durability tubular seating frames, polyurethane high-resilience foam cushions, anti-microbial synthetic upholstery, and modular dashboard instrument panel moldings.</p>
+          </div>
+          <div class="tender-action-row">
+            <div class="tender-deadline-box">
+              Bids Close: <span class="tender-deadline-val">20 Jan 2027</span>
+            </div>
+            <button type="button" class="portal-tier-cta-btn" style="width: auto; padding: 10px 18px; font-size: 11px;" onclick="window.openTenderBidModal('rfp-cabin-03')">
+              Submit Proposal &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Application Tracking Section (Core Requirement) -->
       <div id="tracking-section" class="tracking-box">
-        <span class="portal-kicker" style="justify-content: center;">03 / APPLICATION STATUS</span>
+        <span class="portal-kicker" style="justify-content: center;">04 / DOSSIER &amp; BID TRACKING</span>
         <h3 class="tracking-title">Track Your Supplier Dossier</h3>
         <p class="tracking-desc">Enter your application tracking code (e.g. MVR-2026-XXXX) or registered company email to check your review status and assigned tier.</p>
         
@@ -256,8 +533,8 @@
         <div class="footer-links">
           <a href="#strategic-section">Overview</a>
           <a href="#tiers-section">Tiers &amp; Pricing</a>
+          <a href="#tenders-section">Tenders &amp; RFPs</a>
           <a href="#tracking-section">Tracking</a>
-          <a href="cms.html" style="color: var(--gold); font-weight: 700;" target="_blank">⚙️ Admin CMS ↗</a>
         </div>
 
         <div style="font-size: 12px; color: var(--ink-faint);">
@@ -363,7 +640,13 @@
             <div class="form-group full-width">
               <label class="form-label">Upload Company Profile &amp; Certification Documents *</label>
               <div class="dropzone" id="regDropzone">
-                <span class="dropzone-icon">📁</span>
+                <span class="dropzone-icon">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </span>
                 <p class="dropzone-text">Click or drag &amp; drop your Company Profile (PDF, DOCX, ZIP)</p>
                 <p class="dropzone-hint">Include: Company Profile, Audited Financials, ISO/IATF certificates, or Capability Statement (Up to 25MB)</p>
                 <input type="file" id="regFileInput" style="display: none;" multiple accept=".pdf,.doc,.docx,.zip,.png,.jpg">
@@ -373,12 +656,12 @@
 
             <!-- Registration Fee & Terms Banner -->
             <div class="form-group full-width">
-              <div style="background: rgba(207, 143, 69, 0.08); border: 1px solid rgba(207, 143, 69, 0.25); padding: 14px 18px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="background: rgba(104, 211, 145, 0.06); border: 1px solid rgba(104, 211, 145, 0.25); padding: 14px 18px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
                   <div style="font-size: 11px; color: var(--ink-faint); text-transform: uppercase;">Tier Qualification Fee</div>
-                  <div style="font-size: 16px; font-weight: 700; color: var(--gold);" id="modalTierFeeDisplay">R 45,000 (Once-off)</div>
+                  <div style="font-size: 15px; font-weight: 700; color: #68d391;" id="modalTierFeeDisplay">Waived — AfCFTA Pilot Program ($0 / Free)</div>
                 </div>
-                <span style="font-size: 11px; color: var(--ink-faint);">Fee payable upon qualification audit</span>
+                <span style="font-size: 11px; color: var(--ink-faint);">Sponsored under MUREZA Continental Industrialization Pilot</span>
               </div>
             </div>
           </div>
@@ -394,7 +677,11 @@
 
       <!-- Success Screen -->
       <div class="reg-modal-body success-screen" id="regSuccessScreen" style="display: none;">
-        <div class="success-badge">✓</div>
+        <div class="success-badge">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
         <h3 style="font-size: 22px; color: var(--ink); text-transform: uppercase; margin-bottom: 8px;">Application Received</h3>
         <p style="font-size: 14px; color: var(--ink-dim); max-width: 500px; margin: 0 auto;">
           Thank you, <strong id="successCompanyName" style="color: var(--ink);">Your Company</strong>. Your company profile and technical documents have been securely uploaded to the MUREZA supplier qualification queue.
@@ -431,13 +718,13 @@
       </div>
       <div class="modal-body">
         <p style="font-size: 13px; color: var(--ink-dim); line-height: 1.6; margin-bottom: 20px;">
-          The interactive dismantling sequence showcases the 240 localized components engineered for the MUREZA commercial and passenger vehicle lineup. Suppliers can register across 5 key systems:
+          Review the modular engineering subsystems for the MUREZA Villager platform. Select an automotive engineering category below to register manufacturing capacity or submit tender proposals.
         </p>
 
         <div style="display: flex; flex-direction: column; gap: 12px;">
           <div class="doc-item">
             <div class="doc-info">
-              <span class="doc-icon">⚡</span>
+              <span class="sys-code-badge">SYS 01</span>
               <div>
                 <div class="doc-name">1. High-Voltage Traction &amp; Powertrain (Tier 1)</div>
                 <div class="doc-meta">Integrated e-axles, BMS, inverter controllers, lithium-iron-phosphate battery packs</div>
@@ -448,7 +735,7 @@
 
           <div class="doc-item">
             <div class="doc-info">
-              <span class="doc-icon">🚗</span>
+              <span class="sys-code-badge">SYS 02</span>
               <div>
                 <div class="doc-name">2. Stamped Body Shell &amp; Outer Panels (Tier 1 &amp; 2)</div>
                 <div class="doc-meta">Monocoque chassis stampings, door assemblies, composites, aluminium closures</div>
@@ -459,7 +746,7 @@
 
           <div class="doc-item">
             <div class="doc-info">
-              <span class="doc-icon">🔌</span>
+              <span class="sys-code-badge">SYS 03</span>
               <div>
                 <div class="doc-name">3. Electrical Architecture &amp; Telematics (Tier 1 &amp; 2)</div>
                 <div class="doc-meta">Central vehicle ECU, 12V and HV wire harnesses, LED lighting, digital cluster</div>
@@ -470,7 +757,7 @@
 
           <div class="doc-item">
             <div class="doc-info">
-              <span class="doc-icon">🛋️</span>
+              <span class="sys-code-badge">SYS 04</span>
               <div>
                 <div class="doc-name">4. Cockpit, HVAC &amp; Interior Trim (Tier 1 &amp; 2)</div>
                 <div class="doc-meta">Ergonomic bus seating, climate control compressor, dash injection moldings, acoustic glass</div>
@@ -481,7 +768,7 @@
 
           <div class="doc-item">
             <div class="doc-info">
-              <span class="doc-icon">⚙️</span>
+              <span class="sys-code-badge">SYS 05</span>
               <div>
                 <div class="doc-name">5. Steering, Braking &amp; Suspension (Tier 1 &amp; 2)</div>
                 <div class="doc-meta">Regenerative ABS calipers, heavy-duty dampers, steering racks, wheels and tyres</div>
@@ -499,9 +786,144 @@
     </div>
   </div>
 
+  <!-- ============================================================ -->
+  <!-- MODAL: SUBMIT TENDER BID / PROPOSAL -->
+  <!-- ============================================================ -->
+  <div class="reg-modal-overlay" id="tenderBidModal">
+    <div class="reg-modal-box">
+      <div class="reg-modal-header">
+        <div>
+          <span class="portal-kicker" id="bidModalTenderRef">RFP-2026-CHASSIS-01</span>
+          <h2 class="reg-modal-title" id="bidModalTenderTitle">Submit Tender Proposal</h2>
+        </div>
+        <button class="modal-close" onclick="closeTenderBidModal()">&times;</button>
+      </div>
+
+      <div class="reg-modal-body" id="bidModalFormScreen">
+        <p style="font-size: 13px; color: var(--ink-dim); margin-bottom: 20px; line-height: 1.5;">
+          Submit your commercial quotation, tooling schedule, and technical capability statement for this OEM work package.
+        </p>
+
+        <form id="tenderBidForm">
+          <input type="hidden" id="bidFormTenderId">
+          <input type="hidden" id="bidFormTenderRef">
+          <input type="hidden" id="bidFormTenderTitle">
+
+          <!-- Tracking Lookup / Autofill helper -->
+          <div style="background: rgba(207, 143, 69, 0.08); border: 1px solid rgba(207, 143, 69, 0.25); border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 20px;">
+            <label class="form-label" style="margin-bottom: 6px;">Already Registered? Enter Your Supplier Reference for Fast Autofill</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="form-input" id="bidQuickLookupInput" placeholder="e.g. MVR-2026-4819" style="flex: 1;">
+              <button type="button" class="portal-tier-cta-btn" id="bidAutofillBtn" style="width: auto; padding: 10px 18px; font-size: 11px;">
+                Autofill Details
+              </button>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Company Legal Name *</label>
+              <input type="text" class="form-input" id="bidCompanyName" required placeholder="e.g. Vaal Tooling &amp; Stamping (Pty) Ltd">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Contact Person Name *</label>
+              <input type="text" class="form-input" id="bidContactName" required placeholder="e.g. Johan Van Der Merwe">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Corporate Email Address *</label>
+              <input type="email" class="form-input" id="bidContactEmail" required placeholder="name@company.com">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Telephone / WhatsApp *</label>
+              <input type="tel" class="form-input" id="bidContactPhone" required placeholder="+27 16 980 4000">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Proposed Unit Price *</label>
+              <div style="display: flex; gap: 8px;">
+                <select class="form-select" id="bidCurrency" style="width: 100px;">
+                  <option value="ZAR">ZAR (R)</option>
+                  <option value="USD">USD ($)</option>
+                </select>
+                <input type="number" class="form-input" id="bidUnitCost" required placeholder="Unit price per set" style="flex: 1;" min="0" step="any">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Estimated Tooling / NRE Capex</label>
+              <input type="number" class="form-input" id="bidToolingCost" placeholder="Capex / dies / jigs cost" min="0">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Production Lead Time (Weeks) *</label>
+              <input type="number" class="form-input" id="bidLeadTimeWeeks" required value="12" min="1" max="104">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Committed AfCFTA Domestic Content (%) *</label>
+              <input type="number" class="form-input" id="bidLocalContentPct" required value="60" min="0" max="100">
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label">Technical Capability &amp; Quality QA Statement *</label>
+              <textarea class="form-textarea" id="bidTechnicalNotes" required placeholder="Describe your tooling footprint, press tonnages or assembly lines, raw material origin, and ISO/IATF quality controls..."></textarea>
+            </div>
+          </div>
+
+          <!-- Document Upload -->
+          <div style="margin-top: 18px;">
+            <label class="form-label">Attach Technical Proposal &amp; Commercial Quotation (PDF)</label>
+            <div class="dropzone" id="bidFileDropzone" onclick="document.getElementById('bidFileInput').click()">
+              <input type="file" id="bidFileInput" accept=".pdf" style="display: none;">
+              <span class="dropzone-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--gold);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </span>
+              <p class="dropzone-text">Click or drag &amp; drop tender proposal PDF here</p>
+              <p class="dropzone-hint">Max file size: 25MB • Formal quotation &amp; BOM breakdown</p>
+            </div>
+            <div id="bidFileSelectedPill" style="margin-top: 8px;"></div>
+          </div>
+
+          <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" class="cms-btn cms-btn-outline" onclick="closeTenderBidModal()">Cancel</button>
+            <button type="submit" class="portal-tier-cta-btn" id="bidSubmitBtn" style="width: auto; padding: 12px 28px;">
+              Submit Official Tender Proposal &rarr;
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Success Screen -->
+      <div class="reg-modal-body success-screen" id="bidSuccessScreen" style="display: none;">
+        <div class="success-badge">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h3 style="font-size: 22px; color: var(--ink); text-transform: uppercase; margin-bottom: 8px;">Tender Proposal Logged</h3>
+        <p style="font-size: 14px; color: var(--ink-dim); max-width: 500px; margin: 0 auto;">
+          Thank you, <strong id="bidSuccessCompanyName" style="color: var(--ink);">Your Company</strong>. Your proposal for tender <strong id="bidSuccessTenderRef" style="color: var(--gold);">RFP-2026-XXXX</strong> has been formally registered with the MUREZA Procurement Committee.
+        </p>
+
+        <div class="tracking-display-box" style="margin: 24px auto;">
+          <p class="tracking-box-label">Official Bid Reference Code</p>
+          <p class="tracking-box-code" id="bidSuccessCode">BID-2026-0000</p>
+          <p class="tracking-box-hint">A receipt email with tracking details has been dispatched to your corporate email.</p>
+        </div>
+
+        <button type="button" class="portal-tier-cta-btn" style="width: auto; padding: 12px 32px; margin: 0 auto; display: inline-block;" onclick="closeTenderBidModal()">
+          Close &amp; Return to Portal
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts -->
-  <script src="js/scroll-film.js?v=13" defer></script>
-  <script src="js/ui-motion.js?v=4" defer></script>
-  <script type="module" src="js/portal.js?v=2"></script>
+  <script src="js/scroll-film.js?v=14" defer></script>
+  <script src="js/ui-motion.js?v=5" defer></script>
+  <script type="module" src="js/portal.js?v=5"></script>
 </body>
 </html>

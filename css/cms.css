@@ -707,7 +707,16 @@ body {
 }
 
 .doc-icon {
-  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(207, 143, 69, 0.08);
+  border: 1px solid rgba(207, 143, 69, 0.18);
+  color: var(--gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .doc-name {
@@ -818,6 +827,15 @@ body {
   animation: slideIn 0.3s ease;
 }
 
+.toast-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(207, 143, 69, 0.7);
+  flex-shrink: 0;
+}
+
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -828,3 +846,177 @@ body {
     opacity: 1;
   }
 }
+
+/* ============================================================
+   CMS AUTHENTICATION BARRIER OVERLAY
+   ============================================================ */
+.auth-gate-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 9, 7, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-gate-card {
+  background: #14110e;
+  border: 1px solid rgba(207, 143, 69, 0.35);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(207, 143, 69, 0.12);
+  border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 440px;
+  padding: 36px;
+  position: relative;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Toggle Switch Component */
+.cms-switch-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(14, 10, 7, 0.45);
+  border: 1px solid var(--border);
+  padding: 16px 20px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+.cms-toggle {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.cms-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cms-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.12);
+  transition: 0.3s ease;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cms-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--ink);
+  transition: 0.3s ease;
+  border-radius: 50%;
+}
+
+.cms-toggle input:checked + .cms-toggle-slider {
+  background-color: var(--gold);
+}
+
+.cms-toggle input:checked + .cms-toggle-slider:before {
+  transform: translateX(22px);
+  background-color: #0b0907;
+}
+
+/* ============================================================
+   TENDERS & BIDS CMS MODULE
+   ============================================================ */
+.tender-ref-cell {
+  font-family: "Space Grotesk", monospace;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  font-size: 13px;
+}
+
+.tender-status-open {
+  background: rgba(59, 178, 115, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.tender-status-eval {
+  background: rgba(224, 159, 62, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.tender-status-closed {
+  background: rgba(125, 114, 101, 0.2);
+  color: #9ca3af;
+  border: 1px solid rgba(156, 163, 175, 0.25);
+}
+
+.bid-item-card {
+  background: #140f0a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.bid-item-card:hover {
+  border-color: rgba(207, 143, 69, 0.45);
+}
+
+.bid-item-card.status-awarded {
+  border-color: rgba(59, 178, 115, 0.6);
+  background: rgba(59, 178, 115, 0.04);
+}
+
+.bid-item-card.status-shortlisted {
+  border-color: rgba(207, 143, 69, 0.6);
+  background: rgba(207, 143, 69, 0.04);
+}
+
+.bid-item-card.status-declined {
+  opacity: 0.65;
+  border-color: rgba(230, 57, 70, 0.3);
+}
+
+.bid-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  background: rgba(14, 10, 7, 0.6);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(207, 143, 69, 0.12);
+  margin: 14px 0;
+}
+
+.bid-metric-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bid-metric-kicker {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.bid-metric-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: "Space Grotesk", monospace;
+}
+
+

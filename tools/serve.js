@@ -34,7 +34,50 @@ http
   .createServer((req, res) => {
     let rel = decodeURIComponent(req.url.split("?")[0]);
     if (rel === "/") rel = "/index.html";
-    if (rel === "/cms" || rel === "/admin") rel = "/cms.html";
+    if (rel === "/cms" || rel === "/admin" || rel === "/admin.html") rel = "/cms.html";
+
+    // Handle serverless email endpoint in local preview
+    if (rel === "/api/send-supplier-email") {
+      let body = "";
+      req.on("data", (chunk) => { body += chunk; });
+      req.on("end", async () => {
+        try {
+          const parsed = body ? JSON.parse(body) : {};
+          const resendKey = parsed.apiKey || process.env.RESEND_API_KEY;
+          console.log(`[Local Dev] /api/send-supplier-email called: ${parsed.type} -> ${parsed.to}`);
+          
+          if (resendKey && typeof fetch === "function") {
+            const apiModule = await import("../api/send-supplier-email.js");
+            // Wrap in minimal mock req/res
+            const mockReq = { method: req.method, body: parsed, headers: req.headers };
+            const mockRes = {
+              statusCode: 200,
+              setHeader(k, v) { res.setHeader(k, v); },
+              status(code) { this.statusCode = code; return this; },
+              json(data) {
+                res.writeHead(this.statusCode, { "Content-Type": "application/json" });
+                res.end(JSON.stringify(data));
+              },
+              end() { res.end(); }
+            };
+            return apiModule.default(mockReq, mockRes);
+          }
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            success: true,
+            simulated: true,
+            message: "Local dev mode: email captured and queued.",
+            recipient: parsed.to,
+            trackingCode: parsed.trackingCode
+          }));
+        } catch (e) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
 
     const file = path.join(ROOT, rel);
     /* path.join normalises separators, so compare against the resolved

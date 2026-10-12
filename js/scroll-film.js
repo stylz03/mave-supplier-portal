@@ -124,8 +124,8 @@
   function wordStyle(el, p) {
     if (!el) return;
     el.style.transform =
-      `translate3d(0, ${(-p * 3.4).toFixed(3)}vh, 0) scale(${(1 + p * 0.085).toFixed(4)})`;
-    el.style.letterSpacing = `${(0.23 + p * 0.05).toFixed(4)}em`;
+      `translate3d(-50%, ${(-p * 3.4).toFixed(3)}vh, 0) scale(${(1 + p * 0.085).toFixed(4)})`;
+    el.style.letterSpacing = `${(0.16 + p * 0.04).toFixed(4)}em`;
   }
 
   function overlays(p) {

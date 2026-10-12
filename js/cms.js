@@ -18,8 +18,20 @@ import {
   markNotificationRead,
   setFirebaseApiKey,
   getIsConnected,
+  loginAdmin,
+  logoutAdmin,
+  getCurrentAdminUser,
+  onAdminAuthChanged,
+  sendSupplierEmail,
   DEFAULT_PAGE_CONTENT,
-  DEFAULT_TIERS
+  DEFAULT_TIERS,
+  DEFAULT_TENDERS,
+  onTendersSnapshot,
+  onBidsSnapshot,
+  seedDefaultTenders,
+  saveTender,
+  deleteTender,
+  updateBidStatus
 } from "./firebase-client.js";
 
 // --- State Cache ---
@@ -28,21 +40,30 @@ let state = {
   tiers: [...DEFAULT_TIERS],
   submissions: [],
   notifications: [],
+  tenders: [...DEFAULT_TENDERS],
+  bids: [],
   activeFilter: "all",
+  activeTenderFilter: "all",
   activeSubmission: null,
-  activeTierEdit: null
+  activeTierEdit: null,
+  activeInspectingTender: null,
+  currentAdmin: null
 };
 
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
+  setupAuthGate();
   setupTabs();
   setupFilterButtons();
   setupSearch();
   setupModals();
   setupContentForm();
   setupTierForm();
+  setupPaymentAndEmailSettings();
   setupNotificationCenter();
   setupSeedDemo();
+  setupTendersTab();
+  setupTenderModals();
 
   function updateBackendBadge() {
     const badge = document.getElementById("backendBadge");
@@ -87,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // If new submission arrived while viewing
     if (prevCount > 0 && submissions.length > prevCount) {
-      showToast("🔔 New supplier application received!");
+      showToast("New supplier application received.");
     }
   });
 
@@ -95,6 +116,24 @@ document.addEventListener("DOMContentLoaded", () => {
   onNotificationsSnapshot((notifications) => {
     state.notifications = notifications;
     renderNotifications();
+  });
+
+  // 5. Subscribe to Tenders
+  onTendersSnapshot((tenders) => {
+    state.tenders = tenders;
+    renderTendersTab();
+    updateTendersMetrics();
+  });
+
+  // 6. Subscribe to Tender Bids
+  onBidsSnapshot((bids) => {
+    state.bids = bids;
+    renderTendersTab();
+    updateTendersMetrics();
+    if (state.activeInspectingTender) {
+      const refreshed = state.tenders.find((t) => t.id === state.activeInspectingTender.id) || state.activeInspectingTender;
+      renderTenderBidsModal(refreshed);
+    }
   });
 });
 
@@ -408,7 +447,9 @@ window.openDossierModal = (sub) => {
           return `
       <div class="doc-item">
         <div class="doc-info">
-          <span class="doc-icon">📄</span>
+          <span class="doc-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </span>
           <div>
             <div class="doc-name">${escapeHtml(doc.name || `Document_${i + 1}.pdf`)}</div>
             <div class="doc-meta">${formatFileSize(doc.size)} • ${formatDate(doc.uploadedAt)}</div>
@@ -477,7 +518,7 @@ function setupModals() {
           reviewerNotes: notes
         });
 
-        showToast(`✓ Evaluation saved! ${state.activeSubmission.companyName} assigned to ${getTierLabel(assignedTier)}.`);
+        showToast(`Evaluation saved: ${state.activeSubmission.companyName} assigned to ${getTierLabel(assignedTier)}.`);
         closeDossierModal();
       } catch (err) {
         showToast("Error updating application: " + err.message);
@@ -485,6 +526,15 @@ function setupModals() {
         saveEvalBtn.textContent = "Save Evaluation & Assign Tier";
         saveEvalBtn.disabled = false;
       }
+    });
+  }
+
+  // Generate Provisional Allocation Letter (PDF) button
+  const pdfBtn = document.getElementById("generatePdfLetterBtn");
+  if (pdfBtn) {
+    pdfBtn.addEventListener("click", () => {
+      if (!state.activeSubmission) return;
+      generateProvisionalAllocationPdf(state.activeSubmission);
     });
   }
 
@@ -526,7 +576,7 @@ function renderTiersGrid() {
           </div>
           <div style="display: flex; gap: 6px;">
             <button class="cms-btn cms-btn-outline" style="padding: 4px 8px; font-size: 11px;" onclick="window.editTier('${tier.id}')">Edit</button>
-            <button class="cms-btn cms-btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.deleteTierById('${tier.id}')">✕</button>
+            <button class="cms-btn cms-btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.deleteTierById('${tier.id}')" title="Delete Tier">Delete</button>
           </div>
         </div>
 
@@ -625,7 +675,7 @@ function setupTierForm() {
 
       try {
         await saveTier(tierData);
-        showToast(`✓ Tier ${code} saved successfully!`);
+        showToast(`Tier ${code} saved successfully.`);
         closeTierModal();
       } catch (err) {
         showToast("Error saving tier: " + err.message);
@@ -699,7 +749,7 @@ window.deleteTierById = async (id) => {
 // ============================================================
 
 function populateContentForm(content) {
-  document.getElementById("fieldDisplayWord").value = content.displayWord || "PARTNERS";
+  document.getElementById("fieldDisplayWord").value = content.displayWord || "SUPPLIERS";
   document.getElementById("fieldKicker").value = content.kicker || "01 / STRATEGIC PARTNERS";
   document.getElementById("fieldHeadline").value = content.headline || "BUILDING THE FUTURE.";
   document.getElementById("fieldBrandName").value = content.brandName || "SUPPLIER PORTAL";
@@ -771,7 +821,7 @@ function setupContentForm() {
 
       try {
         await saveSiteContent(updated);
-        showToast("✓ Portal content published live to Firestore & Portal!");
+        showToast("Portal content published live to Firestore & Portal.");
       } catch (err) {
         showToast("Error saving content: " + err.message);
       } finally {
@@ -827,9 +877,466 @@ function setupContentForm() {
         return;
       }
       setFirebaseApiKey(val);
-      showToast("✓ Firebase API Key saved to local session!");
+      showToast("Firebase API Key saved to local session.");
     });
   }
+}
+
+// ============================================================
+// CMS AUTHENTICATION GATE (FIREBASE AUTH)
+// ============================================================
+
+function setupAuthGate() {
+  const overlay = document.getElementById("cmsAuthOverlay");
+  const loginForm = document.getElementById("cmsLoginForm");
+  const emailInput = document.getElementById("authEmailInput");
+  const passwordInput = document.getElementById("authPasswordInput");
+  const errorMsg = document.getElementById("authErrorMsg");
+  const submitBtn = document.getElementById("authSubmitBtn");
+  const bypassBtn = document.getElementById("authBypassBtn");
+  const adminEmailText = document.getElementById("adminEmailText");
+  const adminSignOutBtn = document.getElementById("adminSignOutBtn");
+
+  function setAuthenticatedUser(user) {
+    state.currentAdmin = user;
+    if (overlay) overlay.style.display = "none";
+    if (adminEmailText && user) {
+      adminEmailText.textContent = user.email || "admin@mave.africa";
+    }
+    try {
+      localStorage.setItem("mureza_cms_admin_session", JSON.stringify(user));
+    } catch (e) {}
+  }
+
+  function setUnauthenticated() {
+    const cached = localStorage.getItem("mureza_cms_admin_session");
+    if (cached) {
+      try {
+        const u = JSON.parse(cached);
+        state.currentAdmin = u;
+        if (overlay) overlay.style.display = "none";
+        if (adminEmailText) adminEmailText.textContent = u.email || "admin@mave.africa";
+        return;
+      } catch (e) {}
+    }
+    state.currentAdmin = null;
+    if (overlay) overlay.style.display = "flex";
+    if (adminEmailText) adminEmailText.textContent = "Unauthenticated";
+  }
+
+  // Subscribe to auth state changes
+  onAdminAuthChanged((user) => {
+    if (user) {
+      setAuthenticatedUser(user);
+    } else {
+      setUnauthenticated();
+    }
+  });
+
+  // Handle Login submission
+  if (loginForm) {
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!email || !password) return;
+
+      if (errorMsg) errorMsg.style.display = "none";
+      submitBtn.textContent = "Authenticating...";
+      submitBtn.disabled = true;
+
+      try {
+        const user = await loginAdmin(email, password);
+        setAuthenticatedUser(user);
+        showToast(`Welcome, ${user.email} (Authenticated).`);
+      } catch (err) {
+        if (errorMsg) {
+          errorMsg.textContent = err.message || "Authentication failed. Check credentials.";
+          errorMsg.style.display = "block";
+        }
+      } finally {
+        submitBtn.textContent = "Authenticate with Firebase \u2192";
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  // Dev bypass button
+  if (bypassBtn) {
+    bypassBtn.addEventListener("click", () => {
+      const devUser = { email: "tatenda@mave.africa", displayName: "MAVE Admin (Dev Mode)" };
+      localStorage.setItem("mureza_cms_admin_session", JSON.stringify(devUser));
+      setAuthenticatedUser(devUser);
+      showToast("Dev preview bypass active: Signed in as tatenda@mave.africa");
+    });
+  }
+
+  // Sign out button
+  if (adminSignOutBtn) {
+    adminSignOutBtn.addEventListener("click", async () => {
+      try {
+        localStorage.removeItem("mureza_cms_admin_session");
+      } catch (e) {}
+      await logoutAdmin();
+      setUnauthenticated();
+      showToast("Signed out of CMS.");
+    });
+  }
+}
+
+// ============================================================
+// QUALIFICATION FEES & EMAIL SETTINGS CONTROLLER
+// ============================================================
+
+function setupPaymentAndEmailSettings() {
+  const feeToggle = document.getElementById("cfgTierFeesToggle");
+  const badge = document.getElementById("tierFeesStatusBadge");
+  const stripeKeyInput = document.getElementById("cfgStripePubKey");
+  const stripeCurrencySelect = document.getElementById("cfgStripeCurrency");
+  const feeWaivedInput = document.getElementById("cfgFeeWaivedLabel");
+  const savePaymentBtn = document.getElementById("savePaymentSettingsBtn");
+
+  const resendKeyInput = document.getElementById("cfgResendApiKey");
+  const resendSenderInput = document.getElementById("cfgResendSender");
+  const saveEmailBtn = document.getElementById("saveEmailSettingsBtn");
+  const testEmailBtn = document.getElementById("testEmailBtn");
+
+  function updateFeeBadge(enabled) {
+    if (!badge) return;
+    if (enabled) {
+      badge.textContent = "FEES ACTIVE (STRIPE)";
+      badge.style.background = "rgba(207, 143, 69, 0.2)";
+      badge.style.color = "var(--gold)";
+      badge.style.borderColor = "rgba(207, 143, 69, 0.4)";
+    } else {
+      badge.textContent = "PILOT MODE (FEES WAIVED)";
+      badge.style.background = "rgba(104, 211, 145, 0.15)";
+      badge.style.color = "#68d391";
+      badge.style.borderColor = "rgba(104, 211, 145, 0.3)";
+    }
+  }
+
+  function populateFields(content) {
+    if (feeToggle) feeToggle.checked = content.tierFeesEnabled === true;
+    updateFeeBadge(content.tierFeesEnabled === true);
+
+    if (stripeKeyInput) stripeKeyInput.value = content.stripeConfig?.publishableKey || "";
+    if (stripeCurrencySelect) stripeCurrencySelect.value = content.stripeConfig?.currency || "ZAR";
+    if (feeWaivedInput) feeWaivedInput.value = content.feeWaivedLabel || "Fee Waived — AfCFTA Pilot Onboarding";
+
+    if (resendKeyInput) resendKeyInput.value = content.resendConfig?.apiKey || "";
+    if (resendSenderInput) resendSenderInput.value = content.resendConfig?.fromEmail || "MAVE <onboarding@mave.africa>";
+  }
+
+  populateFields(state.content);
+
+  onSiteContentSnapshot((content) => {
+    populateFields(content);
+  });
+
+  if (feeToggle) {
+    feeToggle.addEventListener("change", () => {
+      updateFeeBadge(feeToggle.checked);
+    });
+  }
+
+  if (savePaymentBtn) {
+    savePaymentBtn.addEventListener("click", async () => {
+      savePaymentBtn.textContent = "Saving...";
+      savePaymentBtn.disabled = true;
+
+      const tierFeesEnabled = feeToggle ? feeToggle.checked : false;
+      const stripeConfig = {
+        enabled: tierFeesEnabled,
+        publishableKey: stripeKeyInput ? stripeKeyInput.value.trim() : "",
+        currency: stripeCurrencySelect ? stripeCurrencySelect.value : "ZAR",
+        testMode: true
+      };
+      const feeWaivedLabel = feeWaivedInput ? feeWaivedInput.value.trim() : "Fee Waived — AfCFTA Pilot Onboarding";
+
+      try {
+        await saveSiteContent({
+          ...state.content,
+          tierFeesEnabled,
+          stripeConfig,
+          feeWaivedLabel
+        });
+        showToast(`Payment settings saved. Mode: ${tierFeesEnabled ? "Stripe Checkout Active" : "AfCFTA Pilot (Fees Waived)"}`);
+      } catch (e) {
+        showToast("Error saving payment settings: " + e.message);
+      } finally {
+        savePaymentBtn.textContent = "Save Payment Settings";
+        savePaymentBtn.disabled = false;
+      }
+    });
+  }
+
+  if (saveEmailBtn) {
+    saveEmailBtn.addEventListener("click", async () => {
+      saveEmailBtn.textContent = "Saving...";
+      saveEmailBtn.disabled = true;
+
+      const resendConfig = {
+        enabled: true,
+        apiKey: resendKeyInput ? resendKeyInput.value.trim() : "",
+        fromEmail: resendSenderInput ? resendSenderInput.value.trim() : "MAVE <onboarding@mave.africa>",
+        replyTo: "suppliers@mave.africa"
+      };
+
+      try {
+        await saveSiteContent({
+          ...state.content,
+          resendConfig
+        });
+        showToast("Resend email settings updated.");
+      } catch (e) {
+        showToast("Error saving email settings: " + e.message);
+      } finally {
+        saveEmailBtn.textContent = "Save Email Settings";
+        saveEmailBtn.disabled = false;
+      }
+    });
+  }
+
+  if (testEmailBtn) {
+    testEmailBtn.addEventListener("click", async () => {
+      const target = state.currentAdmin?.email || "tatenda@mave.africa";
+      testEmailBtn.textContent = "Sending Test...";
+      testEmailBtn.disabled = true;
+
+      try {
+        const result = await sendSupplierEmail({
+          type: "registration_received",
+          to: target,
+          companyName: "Test Manufacturing Partner (Pty) Ltd",
+          contactName: "Tatenda Chengeta",
+          trackingCode: "MVR-2026-TEST",
+          tierTitle: "TIER 1 (MAJOR SYSTEMS)"
+        });
+
+        if (result?.simulated) {
+          showToast(`Test email simulated to ${target} (Dev mode active).`);
+        } else if (result?.success) {
+          showToast(`Live test email delivered via Resend to ${target}.`);
+        } else {
+          showToast(`Notice: ${result?.error || "Email queued"}`);
+        }
+      } catch (e) {
+        showToast("Test email error: " + e.message);
+      } finally {
+        testEmailBtn.textContent = "Send Test Email to Admin";
+        testEmailBtn.disabled = false;
+      }
+    });
+  }
+}
+
+// ============================================================
+// PROVISIONAL SUPPLIER ALLOCATION LETTER (PDF GENERATOR)
+// ============================================================
+
+function generateProvisionalAllocationPdf(sub) {
+  if (!sub) return;
+  if (!window.jspdf?.jsPDF) {
+    showToast("PDF generator library is still loading. Please try again in a moment.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
+  });
+
+  const gold = [207, 143, 69];
+  const dark = [14, 10, 7];
+  const ink = [33, 37, 41];
+  const lightGrey = [120, 115, 105];
+
+  // Top luxury accent bar
+  doc.setFillColor(...gold);
+  doc.rect(0, 0, 210, 6, "F");
+
+  // Header Title & Branding
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...dark);
+  doc.text("MUREZA OEM AUTOMOTIVE GROUP", 20, 24);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...gold);
+  doc.text("PAN-AFRICAN LOCALIZATION PROGRAM  |  AfCFTA RULES OF ORIGIN FRAMEWORK", 20, 30);
+
+  // Horizontal divider
+  doc.setDrawColor(220, 215, 205);
+  doc.setLineWidth(0.5);
+  doc.line(20, 36, 190, 36);
+
+  // Document Title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.setTextColor(...dark);
+  doc.text("PROVISIONAL SUPPLIER QUALIFICATION & CAPACITY ALLOCATION", 20, 48);
+
+  // Reference & Date Box
+  doc.setFillColor(248, 246, 240);
+  doc.rect(20, 54, 170, 22, "F");
+  doc.setDrawColor(...gold);
+  doc.setLineWidth(0.3);
+  doc.rect(20, 54, 170, 22, "S");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...gold);
+  doc.text("TRACKING REFERENCE:", 26, 62);
+  doc.setTextColor(...dark);
+  doc.setFontSize(11);
+  doc.text(sub.trackingCode || "MVR-2026-0000", 72, 62);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...gold);
+  doc.text("ISSUANCE DATE:", 26, 70);
+  doc.setTextColor(...dark);
+  doc.setFontSize(10);
+  doc.text(new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" }), 72, 70);
+
+  doc.text("STATUS: PROVISIONALLY CERTIFIED", 125, 70);
+
+  // Supplier Details Section
+  let y = 88;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...dark);
+  doc.text("1. QUALIFIED ENTERPRISE DETAILS", 20, y);
+  doc.line(20, y + 2, 190, y + 2);
+
+  y += 10;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...lightGrey);
+  doc.text("Company Name:", 20, y);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...dark);
+  doc.text(sub.companyName || "N/A", 65, y);
+
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("Registration / Tax ID:", 20, y);
+  doc.setTextColor(...dark);
+  doc.text(sub.registrationNumber || "N/A", 65, y);
+
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("Country of Operation:", 20, y);
+  doc.setTextColor(...dark);
+  doc.text(sub.country || "N/A", 65, y);
+
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("Authorized Representative:", 20, y);
+  doc.setTextColor(...dark);
+  doc.text(`${sub.contactName || "N/A"} (${sub.contactEmail || "N/A"})`, 65, y);
+
+  // Allocation & Scope Section
+  y += 15;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...dark);
+  doc.text("2. CAPACITY ALLOCATION & COMPONENT SCOPE", 20, y);
+  doc.line(20, y + 2, 190, y + 2);
+
+  const assignedTierObj = state.tiers.find((t) => t.id === (sub.assignedTier || sub.selectedTier)) || {
+    title: (sub.assignedTier || sub.selectedTier || "TIER 1").toUpperCase(),
+    sub: "MAJOR SYSTEMS"
+  };
+
+  y += 10;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("Allocated Tier Category:", 20, y);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...gold);
+  doc.text(`${assignedTierObj.title} (${assignedTierObj.sub})`, 65, y);
+
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("Manufacturing Category:", 20, y);
+  doc.setTextColor(...dark);
+  doc.text(sub.primaryCategory || "Automotive Component Fabrication", 65, y);
+
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("Target Vehicle Platform:", 20, y);
+  doc.setTextColor(...dark);
+  doc.text("MUREZA Villager EV & Commercial Modular Platform (240 Subsystems)", 65, y);
+
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("AfCFTA Target Domestic Content:", 20, y);
+  doc.setTextColor(...dark);
+  doc.text("Up to 60% African Domestic Value Addition", 65, y);
+
+  // Regulatory Compliance & Terms
+  y += 16;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...dark);
+  doc.text("3. STATUTORY PREREQUISITES & AUDIT SCHEDULE", 20, y);
+  doc.line(20, y + 2, 190, y + 2);
+
+  y += 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...ink);
+  const termsText =
+    "This certificate confirms provisional capacity reservation in the MUREZA continental automotive manufacturing roster under the AfCFTA industrial protocol. Full off-take contracts and CAD tooling allocation remain subject to satisfactory physical site audit, SABS/KEBS/ISO 9001/IATF 16949 quality alignment, and homologation verification. Upfront qualification fees are waived under the current Continental Industrialization Pilot Program.";
+  const splitTerms = doc.splitTextToSize(termsText, 170);
+  doc.text(splitTerms, 20, y);
+
+  // Sign-off / Seal block
+  y += 28;
+  doc.setDrawColor(200, 200, 200);
+  doc.line(20, y, 90, y);
+  doc.line(120, y, 190, y);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...dark);
+  doc.text("DR. TINASHE MUREZA", 20, y + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("Group Managing Director & Founder", 20, y + 9);
+  doc.text("MUREZA Auto Manufacturing Ltd", 20, y + 13);
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...dark);
+  doc.text("TATENDA CHENGETA", 120, y + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...lightGrey);
+  doc.text("Head of Supply Chain & Localization", 120, y + 9);
+  doc.text("MAVE Continental Automotive Group", 120, y + 13);
+
+  // Security Footer
+  doc.setFillColor(...dark);
+  doc.rect(0, 282, 210, 15, "F");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(200, 190, 180);
+  doc.text("OFFICIAL MAVE DOCUMENT  •  CONFIDENTIAL  •  VERIFIABLE AT SUPPLIERS.MAVE.AFRICA", 105, 290, { align: "center" });
+
+  const filename = `MAVE_Supplier_Allocation_${sub.trackingCode || "Certificate"}.pdf`;
+  doc.save(filename);
+  showToast(`Generated Allocation Letter: ${filename}`);
 }
 
 // ============================================================
@@ -904,7 +1411,7 @@ function setupSeedDemo() {
           [dummyFile]
         );
 
-        showToast(`✓ Seeded application: ${sub.companyName} (${sub.trackingCode})`);
+        showToast(`Seeded application: ${sub.companyName} (${sub.trackingCode})`);
       } catch (e) {
         showToast("Seed error: " + e.message);
       } finally {
@@ -992,7 +1499,7 @@ function showToast(message) {
 
   const t = document.createElement("div");
   t.className = "toast";
-  t.innerHTML = `<span>⚡</span><span>${escapeHtml(message)}</span>`;
+  t.innerHTML = `<span class="toast-dot"></span><span>${escapeHtml(message)}</span>`;
   container.appendChild(t);
 
   setTimeout(() => {
@@ -1001,3 +1508,422 @@ function showToast(message) {
     setTimeout(() => t.remove(), 400);
   }, 4000);
 }
+
+// ============================================================
+// TENDERS & BIDDING MANAGEMENT (CLIENT REQUIREMENT)
+// ============================================================
+
+function setupTendersTab() {
+  const filterBtns = document.querySelectorAll(".tender-filter-btn");
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach((b) => {
+        b.classList.remove("cms-btn-gold");
+        b.classList.add("cms-btn-outline");
+      });
+      btn.classList.add("cms-btn-gold");
+      btn.classList.remove("cms-btn-outline");
+      state.activeTenderFilter = btn.dataset.tenderFilter || "all";
+      renderTendersTab();
+    });
+  });
+
+  const addBtn = document.getElementById("addNewTenderBtn");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => window.openTenderEditModal());
+  }
+
+  const seedBtn = document.getElementById("seedTendersBtn");
+  if (seedBtn) {
+    seedBtn.addEventListener("click", async () => {
+      if (!confirm("Reset and seed default OEM Villager platform RFPs?")) return;
+      await seedDefaultTenders();
+      showToast("Default OEM RFPs restored.");
+    });
+  }
+}
+
+function updateTendersMetrics() {
+  const openCount = state.tenders.filter((t) => t.status === "open").length;
+  const totalBids = state.bids.length;
+  const awardedCount = state.bids.filter((b) => b.status === "awarded").length;
+
+  const activeEl = document.getElementById("metricActiveTenders");
+  if (activeEl) activeEl.textContent = openCount;
+
+  const bidsEl = document.getElementById("metricTotalBids");
+  if (bidsEl) bidsEl.textContent = totalBids;
+
+  const awardedEl = document.getElementById("metricAwardedBids");
+  if (awardedEl) awardedEl.textContent = awardedCount;
+
+  const badge = document.getElementById("openTendersBadge");
+  if (badge) badge.textContent = openCount;
+
+  const allCountEl = document.getElementById("countTendersAll");
+  if (allCountEl) allCountEl.textContent = state.tenders.length;
+
+  const openCountEl = document.getElementById("countTendersOpen");
+  if (openCountEl) openCountEl.textContent = openCount;
+
+  const evalCountEl = document.getElementById("countTendersEval");
+  if (evalCountEl) evalCountEl.textContent = state.tenders.filter((t) => t.status === "evaluation").length;
+
+  const closedCountEl = document.getElementById("countTendersClosed");
+  if (closedCountEl) closedCountEl.textContent = state.tenders.filter((t) => t.status === "closed").length;
+}
+
+function renderTendersTab() {
+  const tbody = document.getElementById("tendersTableBody");
+  if (!tbody) return;
+
+  const filter = state.activeTenderFilter || "all";
+  const filtered = state.tenders.filter((t) => {
+    if (filter === "all") return true;
+    return t.status === filter;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align: center; color: var(--ink-faint); padding: 36px;">
+          No RFPs matching the current filter. Click "+ Create New Tender" to publish a new RFP.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered
+    .map((t) => {
+      const bidsForTender = state.bids.filter((b) => b.tenderId === t.id);
+      const bidsCount = bidsForTender.length;
+
+      let statusBadgeClass = "tender-status-open";
+      let statusLabel = "OPEN";
+      if (t.status === "evaluation") {
+        statusBadgeClass = "tender-status-eval";
+        statusLabel = "EVALUATION";
+      } else if (t.status === "closed") {
+        statusBadgeClass = "tender-status-closed";
+        statusLabel = "CLOSED";
+      }
+
+      return `
+        <tr>
+          <td>
+            <span class="tender-ref-cell">${escapeHtml(t.ref || "RFP")}</span>
+          </td>
+          <td>
+            <div class="company-cell">
+              <span class="company-name" style="font-size: 13px;">${escapeHtml(t.title)}</span>
+              <span style="font-size: 11px; color: var(--gold);">${escapeHtml(t.category)}</span>
+            </div>
+          </td>
+          <td style="font-size: 12px; color: var(--ink-dim);">${escapeHtml(t.volume || "—")}</td>
+          <td style="font-family: monospace; font-size: 12px; color: var(--ink);">${escapeHtml(t.estimatedValue || "—")}</td>
+          <td>
+            <span style="font-weight: 600; color: #4ade80; font-family: monospace;">${t.localContentPct || 50}%</span>
+          </td>
+          <td style="font-size: 12px; color: var(--ink-dim);">${formatDate(t.deadline)}</td>
+          <td>
+            <span class="cms-badge ${statusBadgeClass}">${statusLabel}</span>
+          </td>
+          <td>
+            <button class="cms-btn cms-btn-outline" style="padding: 4px 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;" onclick="window.inspectTenderBids('${t.id}')">
+              <span>Bids</span>
+              <span class="status-pill ${bidsCount > 0 ? "status-approved" : ""}" style="padding: 1px 6px; font-size: 10px;">${bidsCount}</span>
+            </button>
+          </td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              <button class="cms-btn cms-btn-outline" style="padding: 4px 8px; font-size: 11px;" onclick="window.editTender('${t.id}')">Edit</button>
+              <button class="cms-btn cms-btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.deleteTenderById('${t.id}')" title="Delete Tender">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+function setupTenderModals() {
+  const saveBtn = document.getElementById("saveTenderBtn");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      const id = document.getElementById("editTenderId").value || `rfp_${Date.now()}`;
+      const ref = document.getElementById("tenderEditRef").value.trim();
+      const title = document.getElementById("tenderEditTitle").value.trim();
+      const category = document.getElementById("tenderEditCategory").value.trim();
+      const volume = document.getElementById("tenderEditVolume").value.trim();
+      const estimatedValue = document.getElementById("tenderEditEstimatedValue").value.trim();
+      const localContentPct = Number(document.getElementById("tenderEditLocalContent").value) || 50;
+      const location = document.getElementById("tenderEditLocation").value.trim();
+      const deadline = document.getElementById("tenderEditDeadline").value;
+      const status = document.getElementById("tenderEditStatus").value || "open";
+      const scope = document.getElementById("tenderEditScope").value.trim();
+      const requirements = document.getElementById("tenderEditRequirements").value.trim();
+
+      if (!ref || !title) {
+        showToast("Please provide reference code and title.");
+        return;
+      }
+
+      saveBtn.textContent = "Saving...";
+      saveBtn.disabled = true;
+
+      try {
+        await saveTender({
+          id,
+          ref,
+          title,
+          category,
+          volume,
+          estimatedValue,
+          localContentPct,
+          location,
+          deadline,
+          status,
+          scope,
+          requirements
+        });
+        showToast(`Tender ${ref} saved successfully.`);
+        window.closeTenderEditModal();
+      } catch (err) {
+        showToast("Error saving tender: " + err.message);
+      } finally {
+        saveBtn.textContent = "Save Tender";
+        saveBtn.disabled = false;
+      }
+    });
+  }
+
+  const editModal = document.getElementById("tenderEditModal");
+  if (editModal) {
+    editModal.addEventListener("click", (e) => {
+      if (e.target === editModal) window.closeTenderEditModal();
+    });
+  }
+
+  const bidsModal = document.getElementById("tenderBidsModal");
+  if (bidsModal) {
+    bidsModal.addEventListener("click", (e) => {
+      if (e.target === bidsModal) window.closeTenderBidsModal();
+    });
+  }
+}
+
+window.openTenderEditModal = (tender = null) => {
+  const modal = document.getElementById("tenderEditModal");
+  const title = document.getElementById("tenderModalTitle");
+  if (!modal) return;
+
+  if (tender) {
+    title.textContent = `Edit RFP: ${tender.ref}`;
+    document.getElementById("editTenderId").value = tender.id || "";
+    document.getElementById("tenderEditRef").value = tender.ref || "";
+    document.getElementById("tenderEditTitle").value = tender.title || "";
+    document.getElementById("tenderEditCategory").value = tender.category || "";
+    document.getElementById("tenderEditVolume").value = tender.volume || "";
+    document.getElementById("tenderEditEstimatedValue").value = tender.estimatedValue || "";
+    document.getElementById("tenderEditLocalContent").value = tender.localContentPct || 60;
+    document.getElementById("tenderEditLocation").value = tender.location || "South Africa / East Africa SEZ Hubs";
+    document.getElementById("tenderEditDeadline").value = tender.deadline || "";
+    document.getElementById("tenderEditStatus").value = tender.status || "open";
+    document.getElementById("tenderEditScope").value = tender.scope || "";
+    document.getElementById("tenderEditRequirements").value = tender.requirements || "";
+  } else {
+    title.textContent = "Create New RFP Tender";
+    const rand = Math.floor(10 + Math.random() * 90);
+    document.getElementById("editTenderId").value = "";
+    document.getElementById("tenderEditRef").value = `RFP-2026-OEM-${rand}`;
+    document.getElementById("tenderEditTitle").value = "";
+    document.getElementById("tenderEditCategory").value = "Powertrain & Electrical (Tier 1)";
+    document.getElementById("tenderEditVolume").value = "10,000 sets / year";
+    document.getElementById("tenderEditEstimatedValue").value = "R 75,000,000 / $4.1M USD";
+    document.getElementById("tenderEditLocalContent").value = 60;
+    document.getElementById("tenderEditLocation").value = "South Africa / East Africa SEZ Hubs";
+    document.getElementById("tenderEditDeadline").value = "2026-12-31";
+    document.getElementById("tenderEditStatus").value = "open";
+    document.getElementById("tenderEditScope").value = "";
+    document.getElementById("tenderEditRequirements").value = "IATF 16949 / ISO 9001 certified readiness, audited raw material supply chain.";
+  }
+
+  modal.classList.add("open");
+};
+
+window.closeTenderEditModal = () => {
+  const modal = document.getElementById("tenderEditModal");
+  if (modal) modal.classList.remove("open");
+};
+
+window.editTender = (id) => {
+  const t = state.tenders.find((item) => item.id === id);
+  if (t) window.openTenderEditModal(t);
+};
+
+window.deleteTenderById = async (id) => {
+  const t = state.tenders.find((item) => item.id === id);
+  if (!t) return;
+  if (!confirm(`Are you sure you want to delete tender ${t.ref} (${t.title})?`)) return;
+
+  try {
+    await deleteTender(id);
+    showToast(`Deleted ${t.ref}`);
+  } catch (err) {
+    showToast("Error deleting tender: " + err.message);
+  }
+};
+
+window.inspectTenderBids = (tenderId) => {
+  const tender = state.tenders.find((t) => t.id === tenderId);
+  if (!tender) return;
+  state.activeInspectingTender = tender;
+  renderTenderBidsModal(tender);
+  const modal = document.getElementById("tenderBidsModal");
+  if (modal) modal.classList.add("open");
+};
+
+window.closeTenderBidsModal = () => {
+  const modal = document.getElementById("tenderBidsModal");
+  if (modal) modal.classList.remove("open");
+  state.activeInspectingTender = null;
+};
+
+function renderTenderBidsModal(tender) {
+  const refEl = document.getElementById("bidsModalRef");
+  if (refEl) refEl.textContent = tender.ref || "RFP";
+
+  const titleEl = document.getElementById("bidsModalTitle");
+  if (titleEl) titleEl.textContent = tender.title || "Tender Proposals";
+
+  const scopeEl = document.getElementById("bidsModalScope");
+  if (scopeEl) scopeEl.textContent = `${tender.volume || ""} • Target: ${tender.localContentPct || 60}% African Local Content`;
+
+  const container = document.getElementById("tenderBidsListContainer");
+  if (!container) return;
+
+  const bids = state.bids.filter((b) => b.tenderId === tender.id);
+  const countEl = document.getElementById("bidsModalCount");
+  if (countEl) countEl.textContent = `${bids.length} Bid${bids.length === 1 ? "" : "s"} Received`;
+
+  if (bids.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px 20px; background: rgba(14, 10, 7, 0.4); border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--ink-dim);">
+        <p style="font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 6px;">No Bids Submitted Yet</p>
+        <p style="font-size: 12px; color: var(--ink-faint); margin: 0;">Registered suppliers can submit commercial bids and technical proposals directly from the public portal Tenders section.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = bids
+    .map((bid) => {
+      const isAwarded = bid.status === "awarded";
+      const isShortlisted = bid.status === "shortlisted";
+      const isDeclined = bid.status === "declined";
+
+      let statusBadge = `<span class="cms-badge badge-backend">SUBMITTED</span>`;
+      if (isAwarded) statusBadge = `<span class="status-pill status-approved">AWARDED CONTRACT</span>`;
+      else if (isShortlisted) statusBadge = `<span class="cms-badge" style="background: rgba(207, 143, 69, 0.2); color: var(--gold); border: 1px solid var(--gold);">SHORTLISTED</span>`;
+      else if (isDeclined) statusBadge = `<span class="cms-badge" style="background: rgba(230, 57, 70, 0.15); color: #feb2b2; border: 1px solid rgba(230, 57, 70, 0.3);">DECLINED</span>`;
+
+      const proposalDoc = bid.proposalDoc;
+      const docHtml = proposalDoc && proposalDoc.url ? `
+        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(14, 10, 7, 0.5); border: 1px solid rgba(207, 143, 69, 0.15); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--gold);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--ink);">${escapeHtml(proposalDoc.name || "Technical Proposal.pdf")}</div>
+              <div style="font-size: 11px; color: var(--ink-faint);">${formatFileSize(proposalDoc.size)} • Uploaded with bid</div>
+            </div>
+          </div>
+          <a href="${proposalDoc.url}" target="_blank" rel="noopener noreferrer" class="cms-btn cms-btn-outline" style="padding: 4px 10px; font-size: 11px;">
+            View Quotation PDF ↗
+          </a>
+        </div>
+      ` : "";
+
+      const notesId = `bidNotes_${bid.id}`;
+
+      return `
+        <div class="bid-item-card ${isAwarded ? "status-awarded" : ""} ${isShortlisted ? "status-shortlisted" : ""} ${isDeclined ? "status-declined" : ""}">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="tender-ref-cell" style="font-size: 14px;">${escapeHtml(bid.bidRef)}</span>
+                ${statusBadge}
+              </div>
+              <h4 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-top: 4px;">${escapeHtml(bid.companyName)}</h4>
+              <div style="font-size: 12px; color: var(--ink-dim); margin-top: 2px;">
+                Contact: ${escapeHtml(bid.contactName || "—")} • ${escapeHtml(bid.contactEmail || "—")} • ${escapeHtml(bid.contactPhone || "—")}
+              </div>
+            </div>
+            <div style="font-size: 11px; color: var(--ink-faint);">
+              Submitted: ${formatDate(bid.submittedAt)}
+            </div>
+          </div>
+
+          <div class="bid-metrics-grid">
+            <div class="bid-metric-box">
+              <span class="bid-metric-kicker">Proposed Unit Price</span>
+              <span class="bid-metric-val" style="color: var(--gold);">${formatCurrency(bid.proposedUnitCost, bid.currency)}</span>
+            </div>
+            <div class="bid-metric-box">
+              <span class="bid-metric-kicker">Tooling / Capex</span>
+              <span class="bid-metric-val">${formatCurrency(bid.toolingCost, bid.currency)}</span>
+            </div>
+            <div class="bid-metric-box">
+              <span class="bid-metric-kicker">Production Lead Time</span>
+              <span class="bid-metric-val">${bid.leadTimeWeeks || 12} Weeks</span>
+            </div>
+            <div class="bid-metric-box">
+              <span class="bid-metric-kicker">Pledged Local Content</span>
+              <span class="bid-metric-val" style="color: #4ade80;">${bid.localContentPct || 50}%</span>
+            </div>
+          </div>
+
+          ${bid.technicalNotes ? `
+            <div style="margin: 12px 0; font-size: 12px; color: var(--ink-dim); background: rgba(14, 10, 7, 0.4); padding: 10px 14px; border-radius: 4px; border-left: 2px solid var(--gold);">
+              <span style="font-weight: 600; color: var(--ink);">Technical Statement:</span> ${escapeHtml(bid.technicalNotes)}
+            </div>
+          ` : ""}
+
+          ${docHtml}
+
+          <!-- Reviewer decision box -->
+          <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(207, 143, 69, 0.15); display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <input type="text" id="${notesId}" class="form-input" placeholder="Evaluation notes / award terms..." value="${escapeHtml(bid.reviewerNotes || "")}" style="flex: 1; min-width: 200px; font-size: 12px; padding: 8px 12px;">
+              <button class="cms-btn cms-btn-outline" style="padding: 8px 14px; font-size: 11px; border-color: rgba(207, 143, 69, 0.5); color: var(--gold);" onclick="window.updateBidDecision('${bid.id}', 'shortlisted', '${notesId}')">
+                Shortlist
+              </button>
+              <button class="cms-btn cms-btn-gold" style="padding: 8px 14px; font-size: 11px;" onclick="window.updateBidDecision('${bid.id}', 'awarded', '${notesId}')">
+                Award Tender
+              </button>
+              <button class="cms-btn cms-btn-danger" style="padding: 8px 14px; font-size: 11px;" onclick="window.updateBidDecision('${bid.id}', 'declined', '${notesId}')">
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+window.updateBidDecision = async (bidId, status, notesInputId) => {
+  const notesEl = document.getElementById(notesInputId);
+  const notes = notesEl ? notesEl.value.trim() : "";
+
+  try {
+    await updateBidStatus(bidId, status, notes);
+    showToast(`Bid status updated to: ${status.toUpperCase()}`);
+    if (state.activeInspectingTender) {
+      renderTenderBidsModal(state.activeInspectingTender);
+    }
+  } catch (err) {
+    showToast("Error updating bid: " + err.message);
+  }
+};
+
