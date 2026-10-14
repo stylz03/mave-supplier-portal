@@ -10,13 +10,18 @@
   height: 400vh;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow: visible !important;
 }
 
 .stage {
+  position: -webkit-sticky !important;
   position: sticky !important;
   top: 0 !important;
+  bottom: auto !important;
+  left: 0 !important;
+  right: 0 !important;
   height: 100vh !important;
+  height: 100dvh !important;
   width: 100% !important;
   max-width: 100% !important;
   overflow: hidden !important;
