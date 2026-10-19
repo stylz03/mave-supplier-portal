@@ -32,7 +32,10 @@ import {
   saveTender,
   deleteTender,
   updateBidStatus,
-  createAdminSupplierEntry
+  createAdminSupplierEntry,
+  deleteSubmission,
+  forceSyncLocalToCloud,
+  clearLocalCache
 } from "./firebase-client.js";
 
 // --- State Cache ---
@@ -940,6 +943,31 @@ function setupModals() {
     });
   }
 
+  // Delete Supplier Record button
+  const deleteRecBtn = document.getElementById("deleteDossierRecordBtn");
+  if (deleteRecBtn) {
+    deleteRecBtn.addEventListener("click", async () => {
+      if (!state.activeSubmission) return;
+      const comp = state.activeSubmission.companyName || "this supplier";
+      const confirmed = window.confirm(`Are you sure you want to delete "${comp}"? This will permanently remove the record from all admin views.`);
+      if (!confirmed) return;
+
+      deleteRecBtn.textContent = "Deleting...";
+      deleteRecBtn.disabled = true;
+
+      try {
+        await deleteSubmission(state.activeSubmission.id);
+        showToast(`Supplier record "${comp}" has been removed.`);
+        closeDossierModal();
+      } catch (err) {
+        showToast("Error deleting record: " + err.message);
+      } finally {
+        deleteRecBtn.textContent = "Delete Record";
+        deleteRecBtn.disabled = false;
+      }
+    });
+  }
+
   // Backdrop dismiss
   const dossierModal = document.getElementById("dossierModal");
   if (dossierModal) {
@@ -1443,6 +1471,38 @@ function setupContentForm() {
     });
   }
 
+  // Push Local Cache to Cloud
+  const forceSyncBtn = document.getElementById("forceCloudSyncBtn");
+  if (forceSyncBtn) {
+    forceSyncBtn.addEventListener("click", async () => {
+      forceSyncBtn.textContent = "Syncing to Cloud...";
+      forceSyncBtn.disabled = true;
+      try {
+        const count = await forceSyncLocalToCloud();
+        showToast(`Cloud synchronization complete: ${count} record(s) synced to Firestore.`);
+      } catch (err) {
+        showToast("Sync error: " + err.message);
+      } finally {
+        forceSyncBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+          Push Local Cache to Cloud
+        `;
+        forceSyncBtn.disabled = false;
+      }
+    });
+  }
+
+  // Clear Local Cache & Resync Cloud
+  const clearCacheBtn = document.getElementById("clearLocalCacheBtn");
+  if (clearCacheBtn) {
+    clearCacheBtn.addEventListener("click", () => {
+      if (confirm("Clear local browser cache and reload fresh authoritative state directly from Firestore cloud?")) {
+        clearLocalCache();
+        showToast("Local cache cleared. Synchronizing directly with Firestore cloud...");
+      }
+    });
+  }
+
   // Reset defaults
   const resetBtn = document.getElementById("resetDefaultsBtn");
   if (resetBtn) {
@@ -1512,6 +1572,7 @@ function setupAuthGate() {
   const AUTHORIZED_ADMIN_EMAILS = [
     "tinashe@playmotech.co.za",
     "tatenda@mave.africa",
+    "tinashe@mave.africa",
     "admin@mave.africa"
   ];
 

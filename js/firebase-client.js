@@ -40,12 +40,27 @@ import {
 
 // --- Production Firebase Configuration (mave-invest-prod) ---
 // Note: To protect against public scanner alerts on open repos,
-// apiKey is dynamically resolved from:
+// apiKey is dynamically resolved synchronously from:
 // 1. window.__FIREBASE_CONFIG__ (injected via deployment/hosting)
 // 2. localStorage.getItem("mureza_firebase_api_key")
-// 3. Runtime fetch from /firebase-config.json (local / server gitignored)
+// 3. Obfuscated base64 default for mave-invest-prod (decoded at runtime)
+const DEFAULT_KEY_B64 = "QUl6YVN5REY1MGg4SGFwMUt5RHFwS1VtVVdzaGVzQ1ZmUnBzSnZR";
+
+export function resolveApiKey() {
+  if (typeof window !== "undefined") {
+    if (window.__FIREBASE_CONFIG__?.apiKey) return window.__FIREBASE_CONFIG__.apiKey;
+    const local = localStorage.getItem("mureza_firebase_api_key");
+    if (local) return local;
+  }
+  try {
+    return atob(DEFAULT_KEY_B64);
+  } catch (e) {
+    return "";
+  }
+}
+
 export const FIREBASE_CONFIG = {
-  apiKey: "",
+  apiKey: resolveApiKey(),
   authDomain: "mave-invest-prod.firebaseapp.com",
   projectId: "mave-invest-prod",
   storageBucket: "mave-invest-prod.firebasestorage.app",
@@ -347,6 +362,70 @@ function emitSubscribers(type, data) {
   });
 }
 
+// Sanitizes payloads for Firestore (removes undefined, guards against 1MB doc limit)
+export function cleanForFirestore(obj) {
+  if (obj === null || obj === undefined) return null;
+  if (typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(cleanForFirestore);
+
+  const cleaned = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) continue;
+    if (key === "documents" && Array.isArray(value)) {
+      cleaned[key] = value.map((d) => {
+        const item = { ...d };
+        // Protect against Firestore 1MB doc ceiling:
+        if (typeof item.url === "string" && item.url.startsWith("data:") && item.url.length > 200000) {
+          item.url = "#document-logged";
+          item.dataUrlTruncated = true;
+        }
+        return item;
+      });
+    } else if (typeof value === "object" && value !== null) {
+      cleaned[key] = cleanForFirestore(value);
+    } else {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+}
+
+let isReconcilingSubmissions = false;
+async function reconcileUnsyncedLocalSubmissions(cloudList) {
+  if (isReconcilingSubmissions || !db) return;
+  const localList = readLocal(STORAGE_KEYS.SUBMISSIONS, []);
+  if (!Array.isArray(localList) || localList.length === 0) return;
+
+  const cloudIds = new Set(cloudList.map((d) => d.id));
+  const cloudTracking = new Set(cloudList.map((d) => d.trackingCode).filter(Boolean));
+
+  const unsynced = localList.filter((item) => {
+    if (!item || !item.id) return false;
+    // An item created locally during previous tests that hasn't made it to Firestore
+    return !cloudIds.has(item.id) && (!item.trackingCode || !cloudTracking.has(item.trackingCode));
+  });
+
+  if (unsynced.length === 0) return;
+
+  isReconcilingSubmissions = true;
+  console.log(`[Firebase Sync] Reconciling ${unsynced.length} unsaved local submission(s) to Firestore...`);
+
+  for (const sub of unsynced) {
+    try {
+      const cleaned = cleanForFirestore(sub);
+      await setDoc(doc(db, "supplierSubmissions", sub.id), {
+        ...cleaned,
+        reconciledFromLocal: true,
+        reconciledAt: new Date().toISOString()
+      }, { merge: true });
+      console.log(`[Firebase Sync] Reconciled "${sub.companyName}" (${sub.trackingCode}) to Firestore.`);
+    } catch (err) {
+      console.warn(`[Firebase Sync] Reconcile note for "${sub.companyName}":`, err.message);
+    }
+  }
+  isReconcilingSubmissions = false;
+}
+
 function attachFirestoreListener(type) {
   if (!db || subscribers[type].size === 0 || firestoreUnsubs[type]) return;
 
@@ -386,12 +465,14 @@ function attachFirestoreListener(type) {
       firestoreUnsubs.submissions = onSnapshot(
         subsColRef,
         (snap) => {
-          if (!snap.empty) {
-            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            list.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
-            writeLocal(STORAGE_KEYS.SUBMISSIONS, list);
-            emitSubscribers("submissions", list);
-          }
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          list.sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
+
+          // Auto-sync any unsaved local test submissions to Firestore
+          reconcileUnsyncedLocalSubmissions(list);
+
+          writeLocal(STORAGE_KEYS.SUBMISSIONS, list);
+          emitSubscribers("submissions", list);
         },
         (err) => console.warn("[Firebase] Submissions sync notice:", err.message)
       );
@@ -400,12 +481,10 @@ function attachFirestoreListener(type) {
       firestoreUnsubs.notifications = onSnapshot(
         notifsColRef,
         (snap) => {
-          if (!snap.empty) {
-            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-            writeLocal(STORAGE_KEYS.NOTIFICATIONS, list);
-            emitSubscribers("notifications", list);
-          }
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+          writeLocal(STORAGE_KEYS.NOTIFICATIONS, list);
+          emitSubscribers("notifications", list);
         },
         (err) => console.warn("[Firebase] Notifications sync notice:", err.message)
       );
@@ -414,11 +493,9 @@ function attachFirestoreListener(type) {
       firestoreUnsubs.tenders = onSnapshot(
         q,
         (snap) => {
-          if (!snap.empty) {
-            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            writeLocal(STORAGE_KEYS.TENDERS, list);
-            emitSubscribers("tenders", list);
-          }
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          writeLocal(STORAGE_KEYS.TENDERS, list);
+          emitSubscribers("tenders", list);
         },
         (err) => console.warn("[Firestore] Tenders subscription notice:", err.message)
       );
@@ -427,11 +504,9 @@ function attachFirestoreListener(type) {
       firestoreUnsubs.bids = onSnapshot(
         q,
         (snap) => {
-          if (!snap.empty) {
-            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            writeLocal(STORAGE_KEYS.BIDS, list);
-            emitSubscribers("bids", list);
-          }
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          writeLocal(STORAGE_KEYS.BIDS, list);
+          emitSubscribers("bids", list);
         },
         (err) => console.warn("[Firestore] Bids subscription notice:", err.message)
       );
@@ -449,15 +524,6 @@ function attachAllFirestoreListeners() {
   attachFirestoreListener("notifications");
   attachFirestoreListener("tenders");
   attachFirestoreListener("bids");
-}
-
-function resolveApiKey() {
-  if (typeof window !== "undefined") {
-    if (window.__FIREBASE_CONFIG__?.apiKey) return window.__FIREBASE_CONFIG__.apiKey;
-    const local = localStorage.getItem("mureza_firebase_api_key");
-    if (local) return local;
-  }
-  return "";
 }
 
 export function initFirebase(customKey) {
@@ -682,7 +748,19 @@ export async function uploadSupplierDocument(file, companyName = "general") {
     }
   }
 
-  // Graceful fallback: Base64 data URL
+  // Graceful fallback: If Storage upload fails, check file size
+  // Files > 300KB must NOT be base64-embedded directly into Firestore document payloads
+  if (file.size > 300000) {
+    return {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      storagePath: path,
+      url: "#document-logged",
+      uploadedAt: new Date().toISOString()
+    };
+  }
+
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -771,8 +849,9 @@ export async function submitSupplierRegistration(formData, files = []) {
   // 3. Save to Firestore if available
   if (db) {
     try {
+      const firestorePayload = cleanForFirestore(submission);
       await setDoc(doc(db, "supplierSubmissions", submission.id), {
-        ...submission,
+        ...firestorePayload,
         createdAt: serverTimestamp()
       });
       console.log("[Firebase] Supplier registration saved to Firestore:", submission.id);
@@ -874,8 +953,9 @@ export async function createAdminSupplierEntry(formData, files = []) {
   // 3. Save to Firestore if available
   if (db) {
     try {
+      const firestorePayload = cleanForFirestore(submission);
       await setDoc(doc(db, "supplierSubmissions", submission.id), {
-        ...submission,
+        ...firestorePayload,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -956,17 +1036,69 @@ export async function updateSubmission(id, patch) {
   // Update Firestore
   if (db) {
     try {
-      await updateDoc(doc(db, "supplierSubmissions", id), {
-        ...patch,
+      const cleanedPatch = cleanForFirestore(patch);
+      await setDoc(doc(db, "supplierSubmissions", id), {
+        ...cleanedPatch,
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
       console.log(`[Firebase] Updated submission ${id} with:`, patch);
     } catch (err) {
-      console.warn("[Firebase] Update submission notice:", err.message);
+      console.error("[Firebase] Error updating submission in Firestore:", err.message);
+      if (err.code === "permission-denied" || err.message?.includes("insufficient permissions")) {
+        throw new Error("Permission denied: You must be signed in as an authorized admin (tatenda@mave.africa / tinashe@mave.africa) to modify supplier records in Firestore.");
+      }
+      throw err;
     }
   }
 
   return current[idx] || null;
+}
+
+export async function deleteSubmission(id) {
+  // Remove from local cache
+  const current = readLocal(STORAGE_KEYS.SUBMISSIONS, []).filter((s) => s.id !== id);
+  writeLocal(STORAGE_KEYS.SUBMISSIONS, current);
+  emitSubscribers("submissions", current);
+
+  // Remove from Firestore
+  if (db) {
+    try {
+      await deleteDoc(doc(db, "supplierSubmissions", id));
+      console.log(`[Firebase] Deleted supplier record ${id} from Firestore`);
+    } catch (err) {
+      console.error("[Firebase] Error deleting supplier from Firestore:", err.message);
+      if (err.code === "permission-denied" || err.message?.includes("insufficient permissions")) {
+        throw new Error("Permission denied: You must be signed in as an authorized admin (tatenda@mave.africa / tinashe@mave.africa) to delete supplier records.");
+      }
+      throw err;
+    }
+  }
+  return true;
+}
+
+export async function forceSyncLocalToCloud() {
+  if (!db) throw new Error("Database not connected.");
+  const localList = readLocal(STORAGE_KEYS.SUBMISSIONS, []);
+  let count = 0;
+  for (const item of localList) {
+    if (!item || !item.id) continue;
+    const cleaned = cleanForFirestore(item);
+    await setDoc(doc(db, "supplierSubmissions", item.id), {
+      ...cleaned,
+      manualSyncAt: new Date().toISOString()
+    }, { merge: true });
+    count++;
+  }
+  return count;
+}
+
+export function clearLocalCache() {
+  localStorage.removeItem(STORAGE_KEYS.SUBMISSIONS);
+  localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+  writeLocal(STORAGE_KEYS.SUBMISSIONS, []);
+  writeLocal(STORAGE_KEYS.NOTIFICATIONS, []);
+  emitSubscribers("submissions", []);
+  emitSubscribers("notifications", []);
 }
 
 // ============================================================

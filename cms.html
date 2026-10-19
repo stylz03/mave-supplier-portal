@@ -567,7 +567,14 @@
             </p>
           </div>
 
-          <div style="margin-top: 24px; display: flex; gap: 12px;">
+          <div style="margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="cms-btn cms-btn-outline" id="forceCloudSyncBtn" style="border-color: var(--gold); color: var(--gold); display: inline-flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+              Push Local Cache to Cloud
+            </button>
+            <button class="cms-btn cms-btn-outline" id="clearLocalCacheBtn" style="color: var(--ink-dim);">
+              Clear Local Cache &amp; Resync Cloud
+            </button>
             <button class="cms-btn cms-btn-outline" id="resetDefaultsBtn">Reset CMS to Factory Defaults</button>
             <button class="cms-btn cms-btn-outline" id="exportDataBtn">Export All Data (JSON)</button>
           </div>
@@ -949,10 +956,16 @@
       </div>
 
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <button type="button" class="cms-btn cms-btn-outline" id="generatePdfLetterBtn" style="border-color: rgba(207, 143, 69, 0.5); color: var(--gold); display: inline-flex; align-items: center; gap: 8px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          Provisional Allocation Letter (PDF)
-        </button>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="cms-btn cms-btn-outline" id="generatePdfLetterBtn" style="border-color: rgba(207, 143, 69, 0.5); color: var(--gold); display: inline-flex; align-items: center; gap: 8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Provisional Allocation Letter (PDF)
+          </button>
+          <button type="button" class="cms-btn cms-btn-danger" id="deleteDossierRecordBtn" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Delete Record
+          </button>
+        </div>
         <div style="display: flex; gap: 10px;">
           <button type="button" class="cms-btn cms-btn-outline" onclick="closeDossierModal()">Cancel</button>
           <button type="button" class="cms-btn cms-btn-gold" id="saveDossierEvaluationBtn">
