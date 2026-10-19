@@ -1747,7 +1747,7 @@ function setupPaymentAndEmailSettings() {
     if (feeWaivedInput) feeWaivedInput.value = content.feeWaivedLabel || "Fee Waived — AfCFTA Pilot Onboarding";
 
     if (resendKeyInput) resendKeyInput.value = content.resendConfig?.apiKey || "";
-    if (resendSenderInput) resendSenderInput.value = content.resendConfig?.fromEmail || "MAVE <onboarding@mave.africa>";
+    if (resendSenderInput) resendSenderInput.value = content.resendConfig?.fromEmail || "MAVE Supplier Portal <no-reply@mave.africa>";
   }
 
   populateFields(state.content);
@@ -1801,7 +1801,7 @@ function setupPaymentAndEmailSettings() {
       const resendConfig = {
         enabled: true,
         apiKey: resendKeyInput ? resendKeyInput.value.trim() : "",
-        fromEmail: resendSenderInput ? resendSenderInput.value.trim() : "MAVE <onboarding@mave.africa>",
+        fromEmail: resendSenderInput ? resendSenderInput.value.trim() : "MAVE Supplier Portal <no-reply@mave.africa>",
         replyTo: "suppliers@mave.africa"
       };
 

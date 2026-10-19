@@ -129,7 +129,7 @@ export const DEFAULT_PAGE_CONTENT = {
   },
   resendConfig: {
     enabled: true,
-    fromEmail: "MAVE <onboarding@mave.africa>",
+    fromEmail: "MAVE Supplier Portal <no-reply@mave.africa>",
     replyTo: "suppliers@mave.africa"
   },
   lastUpdated: new Date().toISOString()

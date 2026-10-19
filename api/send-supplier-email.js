@@ -51,7 +51,7 @@ export default async function handler(req, res) {
   } = req.body || {};
 
   const resendApiKey = customApiKey || process.env.RESEND_API_KEY;
-  const from = senderEmail || process.env.RESEND_FROM_EMAIL || "MAVE <onboarding@mave.africa>";
+  const from = senderEmail || process.env.RESEND_FROM_EMAIL || "MAVE Supplier Portal <no-reply@mave.africa>";
   const isValidFormat = typeof resendApiKey === "string" && resendApiKey.trim().startsWith("re_");
 
   // ============================================================
