@@ -31,7 +31,8 @@ import {
   seedDefaultTenders,
   saveTender,
   deleteTender,
-  updateBidStatus
+  updateBidStatus,
+  createAdminSupplierEntry
 } from "./firebase-client.js";
 
 // --- State Cache ---
@@ -951,6 +952,216 @@ function setupModals() {
   if (tierModal) {
     tierModal.addEventListener("click", (e) => {
       if (e.target === tierModal) window.closeTierEditModal();
+    });
+  }
+
+  // Setup manual supplier intake modal events
+  setupCreateSupplierModalEvents();
+}
+
+// ============================================================
+// MANUAL SUPPLIER INTAKE (ADMIN DIRECT ONBOARDING)
+// ============================================================
+
+let createSupplierFiles = [];
+
+export function openCreateSupplierModal() {
+  const modal = document.getElementById("createSupplierModal");
+  if (!modal) return;
+
+  // Populate tier choices from current state.tiers
+  const tierSelect = document.getElementById("newSupSelectedTier");
+  if (tierSelect) {
+    tierSelect.innerHTML = state.tiers
+      .map(
+        (t) => `
+      <option value="${t.id}">
+        ${escapeHtml(t.title)} (${escapeHtml(t.sub)}) — Fee: ${escapeHtml(t.feeFormatted || "R " + t.feeAmount)}
+      </option>
+    `
+      )
+      .join("");
+  }
+
+  // Clear previous files
+  createSupplierFiles = [];
+  renderCreateSupplierFileList();
+
+  // Reset form
+  const form = document.getElementById("createSupplierForm");
+  if (form) form.reset();
+
+  // Reset file input
+  const fileInput = document.getElementById("newSupFileInput");
+  if (fileInput) fileInput.value = "";
+
+  // Reset submit button text/state
+  const submitBtn = document.getElementById("newSupSubmitBtn");
+  if (submitBtn) {
+    submitBtn.textContent = "Create Supplier & Save Dossier \u2192";
+    submitBtn.disabled = false;
+  }
+
+  modal.classList.add("open");
+}
+
+export function closeCreateSupplierModal() {
+  const modal = document.getElementById("createSupplierModal");
+  if (modal) modal.classList.remove("open");
+  createSupplierFiles = [];
+}
+
+window.openCreateSupplierModal = openCreateSupplierModal;
+window.closeCreateSupplierModal = closeCreateSupplierModal;
+
+function renderCreateSupplierFileList() {
+  const listEl = document.getElementById("newSupFilesList");
+  if (!listEl) return;
+
+  if (createSupplierFiles.length === 0) {
+    listEl.innerHTML = "";
+    return;
+  }
+
+  listEl.innerHTML = createSupplierFiles
+    .map((file, idx) => {
+      const sizeKb = Math.round(file.size / 1024);
+      const sizeStr = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + " MB" : sizeKb + " KB";
+      return `
+      <div class="file-pill">
+        <div class="file-pill-info">
+          <span style="font-size: 14px;">📄</span>
+          <span style="font-weight: 600; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${escapeHtml(file.name)}
+          </span>
+          <span style="color: var(--ink-faint); font-size: 11px;">(${sizeStr})</span>
+        </div>
+        <button type="button" class="file-pill-remove" onclick="window.removeNewSupplierFile(${idx})" title="Remove file">&times;</button>
+      </div>
+    `;
+    })
+    .join("");
+}
+
+window.removeNewSupplierFile = (index) => {
+  if (index >= 0 && index < createSupplierFiles.length) {
+    createSupplierFiles.splice(index, 1);
+    renderCreateSupplierFileList();
+  }
+};
+
+function setupCreateSupplierModalEvents() {
+  const dropzone = document.getElementById("newSupDropzone");
+  const fileInput = document.getElementById("newSupFileInput");
+  const form = document.getElementById("createSupplierForm");
+  const modal = document.getElementById("createSupplierModal");
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files) {
+        for (const file of Array.from(e.target.files)) {
+          if (!createSupplierFiles.some((f) => f.name === file.name && f.size === file.size)) {
+            createSupplierFiles.push(file);
+          }
+        }
+        renderCreateSupplierFileList();
+      }
+    });
+
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      if (e.dataTransfer?.files) {
+        for (const file of Array.from(e.dataTransfer.files)) {
+          if (!createSupplierFiles.some((f) => f.name === file.name && f.size === file.size)) {
+            createSupplierFiles.push(file);
+          }
+        }
+        renderCreateSupplierFileList();
+      }
+    });
+  }
+
+  // Backdrop dismiss
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeCreateSupplierModal();
+    });
+  }
+
+  // Form submission
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const companyName = document.getElementById("newSupCompanyName")?.value.trim();
+      const contactName = document.getElementById("newSupContactName")?.value.trim();
+      const contactEmail = document.getElementById("newSupContactEmail")?.value.trim();
+
+      if (!companyName || !contactName || !contactEmail) {
+        showToast("Please fill in all required fields (*).");
+        return;
+      }
+
+      const submitBtn = document.getElementById("newSupSubmitBtn");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Uploading Documents & Creating...";
+      }
+
+      const currentAdmin = getCurrentAdminUser();
+
+      const formData = {
+        companyName,
+        registrationNumber: document.getElementById("newSupRegNo")?.value.trim() || "N/A",
+        country: document.getElementById("newSupCountry")?.value || "South Africa",
+        facilityLocation: document.getElementById("newSupLocation")?.value.trim() || "",
+        website: document.getElementById("newSupWebsite")?.value.trim() || "",
+        yearEstablished: document.getElementById("newSupYear")?.value || new Date().getFullYear(),
+        employeeCount: document.getElementById("newSupEmployees")?.value || "11-50",
+        contactName,
+        contactRole: document.getElementById("newSupContactRole")?.value.trim() || "Representative",
+        contactEmail,
+        contactPhone: document.getElementById("newSupContactPhone")?.value.trim() || "",
+        primaryCategory: document.getElementById("newSupCategory")?.value || "General Automotive Components",
+        selectedTier: document.getElementById("newSupSelectedTier")?.value || "tier-1",
+        assignedTier: document.getElementById("newSupSelectedTier")?.value || "tier-1",
+        status: document.getElementById("newSupStatus")?.value || "tier_assigned",
+        capabilitySummary: document.getElementById("newSupCapability")?.value.trim() || "",
+        reviewerNotes: document.getElementById("newSupNotes")?.value.trim() || "Created directly via Admin Backend Intake",
+        sendEmail: document.getElementById("newSupSendEmail")?.checked ?? true,
+        adminEmail: currentAdmin?.email || "MAVE Procurement Lead"
+      };
+
+      try {
+        const created = await createAdminSupplierEntry(formData, createSupplierFiles);
+        showToast(`Supplier record created: ${created.companyName} (${created.trackingCode})`);
+        closeCreateSupplierModal();
+
+        // Switch to Submissions tab if on another tab
+        const subTabBtn = document.querySelector('[data-tab="tab-submissions"]');
+        if (subTabBtn && !subTabBtn.classList.contains("active")) {
+          subTabBtn.click();
+        }
+      } catch (err) {
+        console.error("Manual supplier creation error:", err);
+        showToast("Error creating supplier record: " + err.message);
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Create Supplier & Save Dossier \u2192";
+        }
+      }
     });
   }
 }

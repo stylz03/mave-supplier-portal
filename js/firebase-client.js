@@ -807,6 +807,112 @@ export async function submitSupplierRegistration(formData, files = []) {
   return submission;
 }
 
+export async function createAdminSupplierEntry(formData, files = []) {
+  const timestamp = Date.now();
+  const rand = Math.floor(10000 + Math.random() * 90000);
+  const trackingCode = formData.trackingCode || `MVR-2026-${rand}`;
+
+  // Process uploaded documents to Firebase Storage
+  const documentList = [];
+  for (const file of files) {
+    if (!file) continue;
+    try {
+      const docRecord = await uploadSupplierDocument(file, formData.companyName || "manual-supplier");
+      if (docRecord) documentList.push(docRecord);
+    } catch (e) {
+      console.warn("[Admin Intake] File upload notice:", e);
+    }
+  }
+
+  const selectedTier = formData.selectedTier || "tier-1";
+  const assignedTier = formData.assignedTier || selectedTier;
+  const status = formData.status || "tier_assigned";
+
+  const submission = {
+    id: `app_adm_${timestamp}_${rand}`,
+    trackingCode,
+    companyName: formData.companyName?.trim() || "Manual Supplier Entry",
+    registrationNumber: formData.registrationNumber?.trim() || "N/A",
+    country: formData.country || "South Africa",
+    yearEstablished: formData.yearEstablished || new Date().getFullYear(),
+    website: formData.website?.trim() || "",
+    facilityLocation: formData.facilityLocation?.trim() || "",
+    employeeCount: formData.employeeCount || "11-50",
+    contactName: formData.contactName?.trim() || "",
+    contactEmail: formData.contactEmail?.trim() || "",
+    contactPhone: formData.contactPhone?.trim() || "",
+    contactRole: formData.contactRole?.trim() || "",
+    primaryCategory: formData.primaryCategory || "General Automotive Components",
+    selectedTier,
+    assignedTier,
+    capabilitySummary: formData.capabilitySummary?.trim() || "",
+    status,
+    reviewerNotes: formData.reviewerNotes?.trim() || "Created directly via Admin Backend Intake",
+    documents: documentList,
+    source: "admin_backend_manual",
+    createdBy: formData.adminEmail || "MAVE Procurement Lead",
+    submittedAt: new Date().toISOString(),
+    reviewedAt: new Date().toISOString(),
+    reviewedBy: formData.adminEmail || "MAVE Procurement Lead"
+  };
+
+  // 1. Save to local storage
+  const current = readLocal(STORAGE_KEYS.SUBMISSIONS, []);
+  current.unshift(submission);
+  writeLocal(STORAGE_KEYS.SUBMISSIONS, current);
+  emitSubscribers("submissions", current);
+
+  // 2. Add local notification
+  addNotification({
+    title: "Supplier Record Created by Admin",
+    message: `${submission.companyName} created manually in ${submission.assignedTier.toUpperCase()} (${submission.status})`,
+    trackingCode: submission.trackingCode,
+    submissionId: submission.id,
+    type: "admin_created"
+  });
+
+  // 3. Save to Firestore if available
+  if (db) {
+    try {
+      await setDoc(doc(db, "supplierSubmissions", submission.id), {
+        ...submission,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      console.log("[Firebase] Admin manual supplier record saved to Firestore:", submission.id);
+
+      // Create Firestore notification
+      await addDoc(collection(db, "supplierNotifications"), {
+        title: "Supplier Record Created by Admin",
+        message: `${submission.companyName} created manually in ${submission.assignedTier.toUpperCase()} (${submission.status})`,
+        trackingCode: submission.trackingCode,
+        submissionId: submission.id,
+        type: "admin_created",
+        read: false,
+        createdAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.warn("[Firebase] Could not write admin submission to Firestore, retained locally:", err.message);
+    }
+  }
+
+  // 4. Send confirmation email if selected
+  if (submission.contactEmail && formData.sendEmail) {
+    sendSupplierEmail({
+      type: submission.status === "approved" ? "status_update" : "registration_received",
+      to: submission.contactEmail,
+      companyName: submission.companyName,
+      contactName: submission.contactName,
+      trackingCode: submission.trackingCode,
+      tierTitle: submission.assignedTier.toUpperCase(),
+      status: submission.status.toUpperCase(),
+      reviewerNotes: submission.reviewerNotes
+    }).catch((e) => console.warn("Email dispatch notice:", e));
+  }
+
+  return submission;
+}
+
 export function onSubmissionsSnapshot(callback) {
   const cached = readLocal(STORAGE_KEYS.SUBMISSIONS, []);
   callback(cached);

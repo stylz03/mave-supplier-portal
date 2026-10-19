@@ -145,9 +145,14 @@
             <h1 class="section-title">Continental Supplier Network</h1>
             <p class="section-desc">Real-time pipeline monitoring, tier assignment, and localization progress.</p>
           </div>
-          <button class="cms-btn cms-btn-gold" onclick="document.querySelector('[data-tab=\'tab-submissions\']').click()">
-            Review New Dossiers
-          </button>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="cms-btn cms-btn-outline" onclick="openCreateSupplierModal()" style="white-space: nowrap;">
+              + Create Supplier
+            </button>
+            <button class="cms-btn cms-btn-gold" onclick="document.querySelector('[data-tab=\'tab-submissions\']').click()" style="white-space: nowrap;">
+              Review New Dossiers
+            </button>
+          </div>
         </div>
 
         <!-- Metrics Cards -->
@@ -218,8 +223,11 @@
             <h1 class="section-title">Supplier Registrations &amp; Profiles</h1>
             <p class="section-desc">Review submitted company documents, inspect qualifications, and assign tiers.</p>
           </div>
-          <div style="display: flex; gap: 10px;">
-            <input type="text" id="submissionSearchInput" class="form-input" placeholder="Search company, country, contact..." style="width: 260px;">
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="submissionSearchInput" class="form-input" placeholder="Search company, country, contact..." style="width: 240px;">
+            <button class="cms-btn cms-btn-gold" id="openCreateSupplierBtn" onclick="openCreateSupplierModal()" style="white-space: nowrap;">
+              + Create Supplier Record
+            </button>
           </div>
         </div>
 
@@ -641,6 +649,210 @@
       </section>
 
     </main>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: MANUAL SUPPLIER INTAKE (ADMIN BACKEND CREATION) -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="createSupplierModal">
+    <div class="modal-box" style="max-width: 800px;">
+      <div class="modal-header">
+        <div>
+          <span class="section-kicker">ADMIN BACKEND INTAKE / DIRECT ONBOARDING</span>
+          <h2 class="modal-title">Create Supplier Dossier</h2>
+        </div>
+        <button class="modal-close" onclick="closeCreateSupplierModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--ink-dim); margin-bottom: 20px; line-height: 1.5;">
+          Directly register an African manufacturing partner whose profile or documents were received via email, WhatsApp, or offline channels. Upload their verification documents, allocate their tier standing, and optionally dispatch an official confirmation.
+        </p>
+
+        <form id="createSupplierForm">
+          <!-- Section 1: Company Profile -->
+          <div style="background: rgba(207, 143, 69, 0.04); border: 1px solid var(--border); padding: 18px; border-radius: var(--radius-sm); margin-bottom: 18px;">
+            <h4 style="font-size: 12px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px;">
+              1. Company Profile &amp; Location
+            </h4>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label class="form-label">Registered Company Name *</label>
+                <input type="text" class="form-input" id="newSupCompanyName" placeholder="e.g. AfroMotive Components Ltd" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Registration / Tax ID</label>
+                <input type="text" class="form-input" id="newSupRegNo" placeholder="e.g. 2024/104928/07">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Country of Primary Manufacturing *</label>
+                <select class="form-select" id="newSupCountry" required>
+                  <option value="South Africa">South Africa</option>
+                  <option value="Zimbabwe">Zimbabwe</option>
+                  <option value="Kenya">Kenya</option>
+                  <option value="Nigeria">Nigeria</option>
+                  <option value="Ghana">Ghana</option>
+                  <option value="Rwanda">Rwanda</option>
+                  <option value="Egypt">Egypt</option>
+                  <option value="Morocco">Morocco</option>
+                  <option value="Botswana">Botswana</option>
+                  <option value="Namibia">Namibia</option>
+                  <option value="Zambia">Zambia</option>
+                  <option value="Mozambique">Mozambique</option>
+                  <option value="Tanzania">Tanzania</option>
+                  <option value="Uganda">Uganda</option>
+                  <option value="Ethiopia">Ethiopia</option>
+                  <option value="Other African State">Other African State</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Facility / Industrial Plant Location</label>
+                <input type="text" class="form-input" id="newSupLocation" placeholder="e.g. Dube TradePort SEZ, Durban">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Website / Company URL</label>
+                <input type="text" class="form-input" id="newSupWebsite" placeholder="https://example.co.za">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Year Established</label>
+                <input type="number" class="form-input" id="newSupYear" placeholder="2018" min="1950" max="2026">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Workforce / Team Size</label>
+                <select class="form-select" id="newSupEmployees">
+                  <option value="1-10">1–10 employees</option>
+                  <option value="11-50" selected>11–50 employees</option>
+                  <option value="51-200">51–200 employees</option>
+                  <option value="201-500">201–500 employees</option>
+                  <option value="500+">500+ employees</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Contact Representative -->
+          <div style="background: rgba(207, 143, 69, 0.04); border: 1px solid var(--border); padding: 18px; border-radius: var(--radius-sm); margin-bottom: 18px;">
+            <h4 style="font-size: 12px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px;">
+              2. Authorized Representative Contact
+            </h4>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Primary Contact Person *</label>
+                <input type="text" class="form-input" id="newSupContactName" placeholder="e.g. Sipho Ndlovu" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Role / Executive Title</label>
+                <input type="text" class="form-input" id="newSupContactRole" placeholder="e.g. Managing Director">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Contact Email Address *</label>
+                <input type="email" class="form-input" id="newSupContactEmail" placeholder="s.ndlovu@afromotive.co.za" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Phone / WhatsApp Number</label>
+                <input type="tel" class="form-input" id="newSupContactPhone" placeholder="+27 82 123 4567">
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Technical Focus, Tier & Qualification Status -->
+          <div style="background: rgba(207, 143, 69, 0.04); border: 1px solid var(--border); padding: 18px; border-radius: var(--radius-sm); margin-bottom: 18px;">
+            <h4 style="font-size: 12px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px;">
+              3. Category, Standing &amp; Review Status
+            </h4>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label class="form-label">Manufacturing Category / Component Specialization *</label>
+                <select class="form-select" id="newSupCategory" required>
+                  <option value="Powertrain &amp; High-Voltage Systems (Tier 1)">Powertrain &amp; High-Voltage Systems (Tier 1)</option>
+                  <option value="Stamping, Body-in-White &amp; Tooling (Tier 1)">Stamping, Body-in-White &amp; Tooling (Tier 1)</option>
+                  <option value="Electronics, Wire Harnesses &amp; Sensors (Tier 2)">Electronics, Wire Harnesses &amp; Sensors (Tier 2)</option>
+                  <option value="Cockpit, HVAC &amp; Interior Trim (Tier 2)">Cockpit, HVAC &amp; Interior Trim (Tier 2)</option>
+                  <option value="Suspension, Brakes &amp; Steering (Tier 2)">Suspension, Brakes &amp; Steering (Tier 2)</option>
+                  <option value="Battery Assembly &amp; Cell Packaging (Tier 1)">Battery Assembly &amp; Cell Packaging (Tier 1)</option>
+                  <option value="Glass, Lighting &amp; Optical (Tier 2)">Glass, Lighting &amp; Optical (Tier 2)</option>
+                  <option value="Special Economic Zone &amp; Infrastructure (Infra)">Special Economic Zone &amp; Infrastructure (Infra)</option>
+                  <option value="Raw Materials, Plastics &amp; Precision Fasteners (Tier 3)">Raw Materials, Plastics &amp; Precision Fasteners (Tier 3)</option>
+                  <option value="Software, Telematics &amp; Autonomous R&amp;D (Tech)">Software, Telematics &amp; Autonomous R&amp;D (Tech)</option>
+                  <option value="Logistics, Cold Storage &amp; Distribution">Logistics, Cold Storage &amp; Distribution</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Target Tier Standing</label>
+                <select class="form-select" id="newSupSelectedTier">
+                  <!-- Populated from active tiers -->
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Initial Qualification Status</label>
+                <select class="form-select" id="newSupStatus">
+                  <option value="approved">Approved (Certified OEM Partner)</option>
+                  <option value="tier_assigned" selected>Tier Assigned (Inspection Active)</option>
+                  <option value="under_review">Under Review (Evaluating)</option>
+                  <option value="pending">Pending Review (Awaiting Full Audit)</option>
+                </select>
+              </div>
+
+              <div class="form-group full-width">
+                <label class="form-label">Capabilities, Tooling &amp; Scope Summary</label>
+                <textarea class="form-textarea" id="newSupCapability" rows="3" placeholder="Describe plant machinery, injection molding tonnage, CNC capabilities, ISO/IATF 16949 certifications, and past OEM experience..."></textarea>
+              </div>
+
+              <div class="form-group full-width">
+                <label class="form-label">Admin Intake Notes / Verification Log</label>
+                <input type="text" class="form-input" id="newSupNotes" placeholder="e.g. Received via direct email from CEO. Tax clearance and B-BBEE level 1 verified.">
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Document Uploads -->
+          <div style="background: rgba(207, 143, 69, 0.04); border: 1px solid var(--border); padding: 18px; border-radius: var(--radius-sm); margin-bottom: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <h4 style="font-size: 12px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.1em; margin: 0;">
+                4. Attach Compliance &amp; Technical Documents
+              </h4>
+              <span style="font-size: 11px; color: var(--ink-faint);">PDF, DOCX, PNG, JPG, XLSX up to 25MB each</span>
+            </div>
+
+            <div class="dropzone" id="newSupDropzone">
+              <input type="file" id="newSupFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip" style="display: none;">
+              <span class="dropzone-icon">📁</span>
+              <div class="dropzone-text">Click or drag &amp; drop supplier verification files here</div>
+              <div class="dropzone-hint">Upload company profile, B-BBEE / AfCFTA certificate, ISO/IATF certifications, audited financials, or capability deck</div>
+            </div>
+
+            <!-- Selected files preview list -->
+            <div id="newSupFilesList" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;"></div>
+          </div>
+
+          <!-- Section 5: Confirmation Options -->
+          <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(207, 143, 69, 0.08); border-radius: var(--radius-sm); border: 1px solid rgba(207, 143, 69, 0.2); margin-bottom: 20px;">
+            <input type="checkbox" id="newSupSendEmail" checked style="width: 18px; height: 18px; accent-color: var(--gold); cursor: pointer;">
+            <label for="newSupSendEmail" style="font-size: 13px; color: var(--ink); cursor: pointer; user-select: none;">
+              <strong>Send Confirmation Email to Supplier:</strong> Dispatch an official dossier receipt with their unique tracking reference code to the supplier's contact email.
+            </label>
+          </div>
+
+          <div class="modal-footer" style="padding: 16px 0 0 0; background: transparent; border-top: 1px solid var(--border);">
+            <button type="button" class="cms-btn cms-btn-outline" onclick="closeCreateSupplierModal()">Cancel</button>
+            <button type="submit" class="cms-btn cms-btn-gold" id="newSupSubmitBtn">
+              Create Supplier &amp; Save Dossier &rarr;
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 
   <!-- ============================================================ -->
