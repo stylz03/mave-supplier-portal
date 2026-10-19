@@ -35,7 +35,9 @@ import {
   createAdminSupplierEntry,
   deleteSubmission,
   forceSyncLocalToCloud,
-  clearLocalCache
+  clearLocalCache,
+  onBroadcastsSnapshot,
+  sendSupplierBroadcast
 } from "./firebase-client.js";
 
 // --- State Cache ---
@@ -46,8 +48,11 @@ let state = {
   notifications: [],
   tenders: [...DEFAULT_TENDERS],
   bids: [],
+  broadcasts: [],
   activeFilter: "all",
   activeTenderFilter: "all",
+  activeBroadcastAudience: "all",
+  activeBroadcastType: "tender",
   activeSubmission: null,
   activeTierEdit: null,
   activeInspectingTender: null,
@@ -72,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSeedDemo();
   setupTendersTab();
   setupTenderModals();
+  setupBroadcastCenter();
 
   function updateBackendBadge() {
     const badge = document.getElementById("backendBadge");
@@ -113,6 +119,9 @@ document.addEventListener("DOMContentLoaded", () => {
     state.submissions = submissions;
     renderSubmissions();
     updateOverviewMetrics();
+    if (typeof window.updateBroadcastRecipientPreview === "function") {
+      window.updateBroadcastRecipientPreview();
+    }
 
     // If new submission arrived while viewing
     if (prevCount > 0 && submissions.length > prevCount) {
@@ -146,6 +155,9 @@ document.addEventListener("DOMContentLoaded", () => {
     state.tenders = tenders;
     renderTendersTab();
     updateTendersMetrics();
+    if (typeof window.populateBroadcastTendersDropdown === "function") {
+      window.populateBroadcastTendersDropdown();
+    }
   });
 
   // 6. Subscribe to Tender Bids
@@ -169,6 +181,16 @@ document.addEventListener("DOMContentLoaded", () => {
         tag: `bid-${latestBid?.id || Date.now()}`
       });
     }
+  });
+
+  // 7. Subscribe to Broadcasts
+  onBroadcastsSnapshot((broadcasts) => {
+    state.broadcasts = broadcasts;
+    renderBroadcastHistory();
+    const countBadge = document.getElementById("broadcastHistoryBadge");
+    if (countBadge) countBadge.textContent = broadcasts.length;
+    const historyCountBadge = document.getElementById("broadcastHistoryCountBadge");
+    if (historyCountBadge) historyCountBadge.textContent = `${broadcasts.length} dispatches`;
   });
 });
 
@@ -2628,4 +2650,459 @@ window.updateBidDecision = async (bidId, status, notesInputId) => {
     showToast("Error updating bid: " + err.message);
   }
 };
+
+// ============================================================
+// CONTINENTAL BROADCAST SYSTEM CONTROLLER
+// ============================================================
+
+function setupBroadcastCenter() {
+  const modeTenderBtn = document.getElementById("btnModeTender");
+  const modeUpdateBtn = document.getElementById("btnModeUpdate");
+  const broadcastTypeBadge = document.getElementById("broadcastTypeBadge");
+  const audienceSelect = document.getElementById("broadcastAudienceSelect");
+  const tenderSelectGroup = document.getElementById("broadcastTenderSelectGroup");
+  const tenderSelect = document.getElementById("broadcastTenderSelect");
+  const customEmailsGroup = document.getElementById("broadcastCustomEmailsGroup");
+  const customEmailsInput = document.getElementById("broadcastCustomEmailsInput");
+  const subjectInput = document.getElementById("broadcastSubjectInput");
+  const headlineInput = document.getElementById("broadcastHeadlineInput");
+  const tenderRefGroup = document.getElementById("tenderRefFieldGroup");
+  const tenderRefInput = document.getElementById("broadcastTenderRefInput");
+  const tenderCategoryGroup = document.getElementById("tenderCategoryFieldGroup");
+  const tenderCategoryInput = document.getElementById("broadcastTenderCategoryInput");
+  const tenderVolumeGroup = document.getElementById("tenderVolumeFieldGroup");
+  const tenderVolumeInput = document.getElementById("broadcastTenderVolumeInput");
+  const tenderValueGroup = document.getElementById("tenderValueFieldGroup");
+  const tenderValueInput = document.getElementById("broadcastTenderValueInput");
+  const tenderDeadlineGroup = document.getElementById("tenderDeadlineFieldGroup");
+  const tenderDeadlineInput = document.getElementById("broadcastTenderDeadlineInput");
+  const tenderLocalContentGroup = document.getElementById("tenderLocalContentFieldGroup");
+  const tenderLocalContentInput = document.getElementById("broadcastTenderLocalContentInput");
+  const messageInput = document.getElementById("broadcastMessageInput");
+  const actionLabelInput = document.getElementById("broadcastActionLabelInput");
+  const actionUrlInput = document.getElementById("broadcastActionUrlInput");
+  const recipientCountEl = document.getElementById("broadcastRecipientCount");
+  const audienceSummaryPill = document.getElementById("broadcastAudienceSummaryPill");
+  const chipsContainer = document.getElementById("broadcastRecipientsChips");
+  const testEmailInput = document.getElementById("broadcastTestEmailInput");
+  const sendTestBtn = document.getElementById("broadcastSendTestBtn");
+  const dispatchBtn = document.getElementById("broadcastDispatchBtn");
+  const resetFormBtn = document.getElementById("broadcastResetFormBtn");
+
+  if (!audienceSelect || !dispatchBtn) return;
+
+  // Pre-fill test email with logged in admin
+  if (testEmailInput) {
+    const adminUser = getCurrentAdminUser();
+    testEmailInput.value = adminUser?.email || "admin@mave.africa";
+  }
+
+  // Broadcast Mode Toggles
+  function setBroadcastMode(mode) {
+    state.activeBroadcastType = mode;
+    if (mode === "tender") {
+      modeTenderBtn?.classList.remove("cms-btn-outline");
+      modeTenderBtn?.classList.add("cms-btn-gold");
+      modeUpdateBtn?.classList.remove("cms-btn-gold");
+      modeUpdateBtn?.classList.add("cms-btn-outline");
+      if (broadcastTypeBadge) {
+        broadcastTypeBadge.textContent = "RFP SOURCING ALERT";
+        broadcastTypeBadge.className = "status-pill status-approved";
+      }
+      if (tenderSelectGroup) tenderSelectGroup.style.display = "flex";
+      if (tenderRefGroup) tenderRefGroup.style.display = "flex";
+      if (tenderCategoryGroup) tenderCategoryGroup.style.display = "flex";
+      if (tenderVolumeGroup) tenderVolumeGroup.style.display = "flex";
+      if (tenderValueGroup) tenderValueGroup.style.display = "flex";
+      if (tenderDeadlineGroup) tenderDeadlineGroup.style.display = "flex";
+      if (tenderLocalContentGroup) tenderLocalContentGroup.style.display = "flex";
+
+      if (actionLabelInput && (!actionLabelInput.value || actionLabelInput.value.includes("Portal"))) {
+        actionLabelInput.value = "Submit Tender Proposal ↗";
+      }
+      if (actionUrlInput && (!actionUrlInput.value || !actionUrlInput.value.includes("#tenders"))) {
+        actionUrlInput.value = "https://suppliers.mave.africa/#tenders";
+      }
+    } else {
+      modeUpdateBtn?.classList.remove("cms-btn-outline");
+      modeUpdateBtn?.classList.add("cms-btn-gold");
+      modeTenderBtn?.classList.remove("cms-btn-gold");
+      modeTenderBtn?.classList.add("cms-btn-outline");
+      if (broadcastTypeBadge) {
+        broadcastTypeBadge.textContent = "GENERAL PROGRAM BULLETIN";
+        broadcastTypeBadge.className = "status-pill status-review";
+      }
+      if (tenderSelectGroup) tenderSelectGroup.style.display = "none";
+      if (tenderRefGroup) tenderRefGroup.style.display = "none";
+      if (tenderCategoryGroup) tenderCategoryGroup.style.display = "none";
+      if (tenderVolumeGroup) tenderVolumeGroup.style.display = "none";
+      if (tenderValueGroup) tenderValueGroup.style.display = "none";
+      if (tenderDeadlineGroup) tenderDeadlineGroup.style.display = "none";
+      if (tenderLocalContentGroup) tenderLocalContentGroup.style.display = "none";
+
+      if (actionLabelInput) actionLabelInput.value = "Visit Supplier Portal ↗";
+      if (actionUrlInput) actionUrlInput.value = "https://suppliers.mave.africa";
+      if (subjectInput && (!subjectInput.value || subjectInput.value.startsWith("[RFP"))) {
+        subjectInput.value = "MAVE Supplier Network Communication: Continental Industrialization Update";
+      }
+      if (headlineInput && (!headlineInput.value || headlineInput.value.includes("Fabrication"))) {
+        headlineInput.value = "Pan-African Supply Chain Operational Bulletin";
+      }
+    }
+  }
+
+  if (modeTenderBtn) modeTenderBtn.addEventListener("click", () => setBroadcastMode("tender"));
+  if (modeUpdateBtn) modeUpdateBtn.addEventListener("click", () => setBroadcastMode("general_update"));
+
+  // Audience selection handler
+  audienceSelect.addEventListener("change", () => {
+    const val = audienceSelect.value;
+    state.activeBroadcastAudience = val;
+    if (val === "custom") {
+      if (customEmailsGroup) customEmailsGroup.style.display = "flex";
+    } else {
+      if (customEmailsGroup) customEmailsGroup.style.display = "none";
+    }
+    updateBroadcastRecipientPreview();
+  });
+
+  if (customEmailsInput) {
+    customEmailsInput.addEventListener("input", () => {
+      if (audienceSelect.value === "custom") {
+        updateBroadcastRecipientPreview();
+      }
+    });
+  }
+
+  // Populate active tenders dropdown
+  window.populateBroadcastTendersDropdown = function () {
+    if (!tenderSelect) return;
+    const tenders = state.tenders || [];
+    tenderSelect.innerHTML = '<option value="">-- Choose Active RFP to Auto-Populate --</option>' +
+      tenders.map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.ref)} — ${escapeHtml(t.title)} (${escapeHtml(t.status?.toUpperCase() || "OPEN")})</option>`).join("");
+  };
+  window.populateBroadcastTendersDropdown();
+
+  // On selecting a tender:
+  if (tenderSelect) {
+    tenderSelect.addEventListener("change", () => {
+      const selectedId = tenderSelect.value;
+      if (!selectedId) return;
+      const tender = (state.tenders || []).find((t) => t.id === selectedId);
+      if (!tender) return;
+
+      if (subjectInput) subjectInput.value = `[RFP OPPORTUNITY] MUREZA OEM Tender: ${tender.ref} — ${tender.title}`;
+      if (headlineInput) headlineInput.value = `OEM Sourcing Call: ${tender.title}`;
+      if (tenderRefInput) tenderRefInput.value = tender.ref || "";
+      if (tenderCategoryInput) tenderCategoryInput.value = tender.category || "";
+      if (tenderVolumeInput) tenderVolumeInput.value = tender.volume || "";
+      if (tenderValueInput) tenderValueInput.value = tender.estimatedValue || "";
+      if (tenderDeadlineInput) tenderDeadlineInput.value = tender.deadline || "";
+      if (tenderLocalContentInput) tenderLocalContentInput.value = tender.localContentPct || 60;
+      if (messageInput) {
+        messageInput.value = tender.scope
+          ? `MUREZA OEM invites certified manufacturers to submit commercial and technical proposals for ${tender.ref} (${tender.title}).\n\nScope of Work:\n${tender.scope}\n\nPlease submit your proposal, unit cost calculations, and proof of manufacturing capacity via the official portal.`
+          : `MUREZA OEM invites certified manufacturers to submit technical proposals for ${tender.ref}. Please log in to the portal to submit your commercial quotation.`;
+      }
+    });
+  }
+
+  // Reset form
+  if (resetFormBtn) {
+    resetFormBtn.addEventListener("click", () => {
+      if (subjectInput) subjectInput.value = "";
+      if (headlineInput) headlineInput.value = "";
+      if (tenderSelect) tenderSelect.value = "";
+      if (tenderRefInput) tenderRefInput.value = "";
+      if (tenderCategoryInput) tenderCategoryInput.value = "";
+      if (tenderVolumeInput) tenderVolumeInput.value = "";
+      if (tenderValueInput) tenderValueInput.value = "";
+      if (tenderDeadlineInput) tenderDeadlineInput.value = "";
+      if (tenderLocalContentInput) tenderLocalContentInput.value = "60";
+      if (messageInput) messageInput.value = "";
+      if (customEmailsInput) customEmailsInput.value = "";
+      setBroadcastMode("tender");
+      audienceSelect.value = "all";
+      if (customEmailsGroup) customEmailsGroup.style.display = "none";
+      updateBroadcastRecipientPreview();
+      showToast("Broadcast composer reset.");
+    });
+  }
+
+  // Recipient resolution helper
+  function resolveRecipients() {
+    const audience = audienceSelect.value;
+    const allSubs = state.submissions || [];
+    const validSubs = allSubs.filter((s) => s && s.contactEmail && s.contactEmail.includes("@"));
+
+    let list = [];
+    if (audience === "all") {
+      list = validSubs;
+    } else if (audience === "approved") {
+      list = validSubs.filter((s) => s.status === "approved");
+    } else if (audience === "tier-1") {
+      list = validSubs.filter((s) => (s.assignedTier || s.selectedTier || "").toLowerCase().includes("1") || (s.primaryCategory || "").toLowerCase().includes("major"));
+    } else if (audience === "tier-2") {
+      list = validSubs.filter((s) => (s.assignedTier || s.selectedTier || "").toLowerCase().includes("2") || (s.primaryCategory || "").toLowerCase().includes("sub"));
+    } else if (audience === "tier-3") {
+      list = validSubs.filter((s) => (s.assignedTier || s.selectedTier || "").toLowerCase().includes("3") || (s.primaryCategory || "").toLowerCase().includes("raw"));
+    } else if (audience === "services") {
+      list = validSubs.filter((s) => (s.assignedTier || s.selectedTier || "").toLowerCase().includes("service") || (s.primaryCategory || "").toLowerCase().includes("service"));
+    } else if (audience === "infra") {
+      list = validSubs.filter((s) => (s.assignedTier || s.selectedTier || "").toLowerCase().includes("infra") || (s.primaryCategory || "").toLowerCase().includes("infra"));
+    } else if (audience === "custom") {
+      const raw = customEmailsInput ? customEmailsInput.value : "";
+      const split = raw.split(/[\s,;]+/).map((e) => e.trim()).filter((e) => e.includes("@"));
+      return split.map((email) => ({
+        email,
+        contactName: "Valued Partner",
+        companyName: email.split("@")[0].toUpperCase()
+      }));
+    }
+
+    // De-duplicate by email
+    const seen = new Set();
+    const result = [];
+    for (const sub of list) {
+      const em = sub.contactEmail.toLowerCase().trim();
+      if (!seen.has(em)) {
+        seen.add(em);
+        result.push({
+          email: em,
+          contactName: sub.contactName || "Manufacturing Partner",
+          companyName: sub.companyName || "Supplier Partner"
+        });
+      }
+    }
+    return result;
+  }
+
+  // Update live preview chips & counter
+  window.updateBroadcastRecipientPreview = function () {
+    const recipients = resolveRecipients();
+    const count = recipients.length;
+    if (recipientCountEl) recipientCountEl.textContent = count;
+    if (audienceSummaryPill) {
+      const opt = audienceSelect.options[audienceSelect.selectedIndex];
+      audienceSummaryPill.textContent = opt ? opt.text : "Audience";
+    }
+
+    if (chipsContainer) {
+      if (count === 0) {
+        chipsContainer.innerHTML = '<span style="font-size: 11px; color: var(--ink-faint); font-style: italic;">No suppliers match the selected filter. Try choosing "All Registered" or add custom email addresses.</span>';
+      } else {
+        chipsContainer.innerHTML = recipients.slice(0, 15).map((r) => `
+          <span style="font-size: 11px; background: rgba(207, 143, 69, 0.12); color: var(--gold); border: 1px solid rgba(207, 143, 69, 0.25); border-radius: 4px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;">
+            <strong>${escapeHtml(r.companyName || r.email)}</strong>
+            <span style="color: var(--ink-faint); font-size: 10px;">(${escapeHtml(r.email)})</span>
+          </span>
+        `).join("") + (count > 15 ? `<span style="font-size: 11px; color: var(--ink-faint); padding: 2px 6px;">+${count - 15} more...</span>` : "");
+      }
+    }
+  };
+
+  updateBroadcastRecipientPreview();
+
+  // Send Test Email
+  if (sendTestBtn) {
+    sendTestBtn.addEventListener("click", async () => {
+      const testEmail = testEmailInput ? testEmailInput.value.trim() : "";
+      if (!testEmail || !testEmail.includes("@")) {
+        showToast("Please provide a valid test email address.");
+        return;
+      }
+
+      const mode = state.activeBroadcastType || "tender";
+      const subject = subjectInput?.value.trim() || (mode === "tender" ? "MUREZA OEM Tender Opportunity" : "MAVE Supplier Network Update");
+      const headline = headlineInput?.value.trim() || subject;
+      const message = messageInput?.value.trim() || "This is a verification broadcast test from the MAVE Supplier Portal CMS.";
+      const actionLabel = actionLabelInput?.value.trim() || "Visit Supplier Portal ↗";
+      const actionUrl = actionUrlInput?.value.trim() || "https://suppliers.mave.africa";
+
+      const tenderData = mode === "tender" ? {
+        ref: tenderRefInput?.value.trim() || "RFP-2026-CHASSIS-01",
+        title: headline,
+        category: tenderCategoryInput?.value.trim() || "General Component Manufacturing",
+        volume: tenderVolumeInput?.value.trim() || "15,000 vehicle sets / year",
+        estimatedValue: tenderValueInput?.value.trim() || "R 180,000,000",
+        localContentPct: Number(tenderLocalContentInput?.value) || 60,
+        deadline: tenderDeadlineInput?.value || "2026-12-15",
+        scope: message
+      } : null;
+
+      sendTestBtn.textContent = "Sending Test...";
+      sendTestBtn.disabled = true;
+
+      try {
+        const res = await sendSupplierBroadcast({
+          broadcastType: mode,
+          isTest: true,
+          testEmail,
+          subject,
+          headline,
+          message,
+          tender: tenderData,
+          actionLabel,
+          actionUrl,
+          senderAdmin: (state.currentAdmin?.email) || "Procurement Admin"
+        });
+
+        if (res.emailRes?.simulated) {
+          showToast(`Test simulated to ${testEmail} (Live key required for actual inbox delivery)`);
+        } else {
+          showToast(`Test email successfully sent to ${testEmail}!`);
+        }
+      } catch (err) {
+        showToast("Error sending test email: " + err.message);
+      } finally {
+        sendTestBtn.textContent = "Send Test Email";
+        sendTestBtn.disabled = false;
+      }
+    });
+  }
+
+  // Dispatch Broadcast
+  if (dispatchBtn) {
+    dispatchBtn.addEventListener("click", async () => {
+      const recipients = resolveRecipients();
+      if (!recipients || recipients.length === 0) {
+        showToast("Cannot dispatch: no recipient suppliers match your selection.");
+        return;
+      }
+
+      const mode = state.activeBroadcastType || "tender";
+      const subject = subjectInput?.value.trim() || (mode === "tender" ? "MUREZA OEM Tender Opportunity" : "MAVE Supplier Network Update");
+      const headline = headlineInput?.value.trim() || subject;
+      const message = messageInput?.value.trim();
+
+      if (!subject || !headline) {
+        showToast("Please enter an email subject line and headline.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Are you sure you want to broadcast this ${mode === "tender" ? "Tender RFP" : "Program Update"} to ${recipients.length} registered supplier(s)?\n\nSubject: ${subject}`
+      );
+      if (!confirmed) return;
+
+      const actionLabel = actionLabelInput?.value.trim() || "Visit Supplier Portal ↗";
+      const actionUrl = actionUrlInput?.value.trim() || "https://suppliers.mave.africa";
+
+      const tenderData = mode === "tender" ? {
+        ref: tenderRefInput?.value.trim() || "RFP-2026-CHASSIS-01",
+        title: headline,
+        category: tenderCategoryInput?.value.trim() || "General Component Manufacturing",
+        volume: tenderVolumeInput?.value.trim() || "15,000 vehicle sets / year",
+        estimatedValue: tenderValueInput?.value.trim() || "R 180,000,000",
+        localContentPct: Number(tenderLocalContentInput?.value) || 60,
+        deadline: tenderDeadlineInput?.value || "2026-12-15",
+        scope: message || "AfCFTA component manufacturing tender specifications."
+      } : null;
+
+      dispatchBtn.innerHTML = `
+        <svg class="spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+        Dispatching to ${recipients.length} Suppliers...
+      `;
+      dispatchBtn.disabled = true;
+
+      try {
+        const res = await sendSupplierBroadcast({
+          broadcastType: mode,
+          audience: audienceSelect.value,
+          recipients,
+          subject,
+          headline,
+          message: message || "",
+          tender: tenderData,
+          actionLabel,
+          actionUrl,
+          senderAdmin: state.currentAdmin?.email || "Procurement Admin"
+        });
+
+        if (res.emailRes?.simulated) {
+          showToast(`Broadcast logged & simulated for ${recipients.length} suppliers across the continent.`);
+        } else {
+          showToast(`Broadcast successfully dispatched to ${recipients.length} suppliers!`);
+        }
+      } catch (err) {
+        showToast("Broadcast dispatch failed: " + err.message);
+      } finally {
+        dispatchBtn.innerHTML = `
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Dispatch Continental Broadcast ↗
+        `;
+        dispatchBtn.disabled = false;
+      }
+    });
+  }
+}
+
+// ============================================================
+// BROADCAST HISTORY TABLE RENDERER
+// ============================================================
+
+function renderBroadcastHistory() {
+  const table = document.getElementById("broadcastHistoryTable");
+  if (!table) return;
+
+  const history = state.broadcasts || [];
+  if (history.length === 0) {
+    table.innerHTML = `
+      <tr>
+        <td colspan="7" style="padding: 40px; text-align: center; color: var(--ink-faint);">
+          <div style="font-size: 14px; color: var(--ink-dim); margin-bottom: 6px;">No broadcast dispatches recorded yet</div>
+          <div style="font-size: 12px;">Use the composer above to send tender announcements or program bulletins to suppliers.</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  table.innerHTML = history.map((b) => {
+    const isTender = b.broadcastType === "tender";
+    const typeBadge = isTender
+      ? `<span class="status-pill status-approved" style="font-size: 10px;">RFP SOURCING</span>`
+      : `<span class="status-pill status-review" style="font-size: 10px;">GENERAL UPDATE</span>`;
+
+    const statusBadge = b.status === "sent"
+      ? `<span class="status-pill status-approved" style="font-size: 10px;">DISPATCHED</span>`
+      : `<span class="status-pill" style="font-size: 10px; background: rgba(224, 159, 62, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3);">SIMULATED</span>`;
+
+    const audienceLabel = b.audience ? b.audience.replace(/[-_]/g, " ").toUpperCase() : "ALL REGISTERED";
+    const sample = (b.recipientsSample || []).join(", ");
+
+    return `
+      <tr>
+        <td style="white-space: nowrap; font-size: 12px; color: var(--ink-dim);">
+          ${formatDate(b.sentAt)}
+          <div style="font-size: 10px; color: var(--ink-faint); margin-top: 2px;">
+            ${new Date(b.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </td>
+        <td>${typeBadge}</td>
+        <td>
+          <div style="font-weight: 600; color: var(--ink); font-size: 13px;">${escapeHtml(b.subject)}</div>
+          <div style="font-size: 11px; color: var(--ink-dim); margin-top: 3px;">${escapeHtml(b.headline || b.message || "")}</div>
+          ${b.tenderRef ? `<span class="tender-ref-cell" style="font-size: 10px; margin-top: 4px; display: inline-block;">${escapeHtml(b.tenderRef)}</span>` : ""}
+        </td>
+        <td>
+          <span class="cms-badge" style="background: rgba(255,255,255,0.06); color: var(--ink-dim); font-size: 10px;">
+            ${escapeHtml(audienceLabel)}
+          </span>
+        </td>
+        <td>
+          <span style="font-weight: 700; color: var(--gold);">${b.recipientCount || 0}</span>
+          <div style="font-size: 10px; color: var(--ink-faint); max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(sample)}">
+            ${escapeHtml(sample || "Suppliers")}
+          </div>
+        </td>
+        <td style="font-size: 12px; color: var(--ink-dim);">
+          ${escapeHtml(b.sentBy || "Admin")}
+        </td>
+        <td>${statusBadge}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
 

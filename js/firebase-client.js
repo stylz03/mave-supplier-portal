@@ -309,7 +309,8 @@ const STORAGE_KEYS = {
   SUBMISSIONS: "mureza_supplier_submissions_v2",
   NOTIFICATIONS: "mureza_supplier_notifications_v2",
   TENDERS: "mureza_supplier_tenders_v2",
-  BIDS: "mureza_supplier_bids_v2"
+  BIDS: "mureza_supplier_bids_v2",
+  BROADCASTS: "mureza_supplier_broadcasts_v2"
 };
 
 function readLocal(key, fallback) {
@@ -339,7 +340,8 @@ const subscribers = {
   submissions: new Set(),
   notifications: new Set(),
   tenders: new Set(),
-  bids: new Set()
+  bids: new Set(),
+  broadcasts: new Set()
 };
 
 const firestoreUnsubs = {
@@ -348,7 +350,8 @@ const firestoreUnsubs = {
   submissions: null,
   notifications: null,
   tenders: null,
-  bids: null
+  bids: null,
+  broadcasts: null
 };
 
 function emitSubscribers(type, data) {
@@ -510,6 +513,18 @@ function attachFirestoreListener(type) {
         },
         (err) => console.warn("[Firestore] Bids subscription notice:", err.message)
       );
+    } else if (type === "broadcasts") {
+      const q = collection(db, "supplierBroadcastHistory");
+      firestoreUnsubs.broadcasts = onSnapshot(
+        q,
+        (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          list.sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0));
+          writeLocal(STORAGE_KEYS.BROADCASTS, list);
+          emitSubscribers("broadcasts", list);
+        },
+        (err) => console.warn("[Firestore] Broadcasts subscription notice:", err.message)
+      );
     }
   } catch (err) {
     console.warn(`[Firebase] Could not attach listener for ${type}:`, err.message);
@@ -524,6 +539,7 @@ function attachAllFirestoreListeners() {
   attachFirestoreListener("notifications");
   attachFirestoreListener("tenders");
   attachFirestoreListener("bids");
+  attachFirestoreListener("broadcasts");
 }
 
 export function initFirebase(customKey) {
@@ -1448,5 +1464,113 @@ export async function updateBidStatus(bidId, status, notes = "") {
   }
 
   return bids[idx];
+}
+
+// ============================================================
+// 9. CONTINENTAL BROADCAST SYSTEM (RFP & GENERAL NOTICES)
+// ============================================================
+
+export function onBroadcastsSnapshot(callback) {
+  subscribers.broadcasts.add(callback);
+  const current = readLocal(STORAGE_KEYS.BROADCASTS, []);
+  callback(current);
+  attachFirestoreListener("broadcasts");
+
+  return () => {
+    subscribers.broadcasts.delete(callback);
+    if (subscribers.broadcasts.size === 0 && firestoreUnsubs.broadcasts) {
+      firestoreUnsubs.broadcasts();
+      firestoreUnsubs.broadcasts = null;
+    }
+  };
+}
+
+export async function sendSupplierBroadcast(payload) {
+  const {
+    broadcastType = "tender",
+    audience = "all",
+    recipients = [],
+    subject = "",
+    headline = "",
+    message = "",
+    tender = null,
+    actionLabel = "",
+    actionUrl = "",
+    senderAdmin = "Procurement Admin",
+    isTest = false,
+    testEmail = ""
+  } = payload;
+
+  const actualRecipients = isTest
+    ? [{ email: testEmail, name: "Admin Test", company: "Internal Audit" }]
+    : recipients;
+
+  if (!actualRecipients || actualRecipients.length === 0) {
+    throw new Error("No recipients specified for broadcast.");
+  }
+
+  const emailRes = await sendSupplierEmail({
+    type: "broadcast",
+    broadcastType,
+    recipients: actualRecipients,
+    subject,
+    headline,
+    message,
+    tender,
+    actionLabel,
+    actionUrl
+  });
+
+  if (isTest) {
+    return {
+      success: true,
+      isTest: true,
+      count: 1,
+      emailRes
+    };
+  }
+
+  const broadcastRecord = {
+    id: `bc_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    broadcastType,
+    audience,
+    recipientCount: actualRecipients.length,
+    subject: subject || (broadcastType === "tender" ? `RFP: ${tender?.ref || ""} ${tender?.title || ""}` : headline),
+    headline: headline || subject,
+    message: message || "",
+    tenderRef: tender?.ref || null,
+    tenderTitle: tender?.title || null,
+    actionLabel: actionLabel || "",
+    actionUrl: actionUrl || "",
+    sentBy: senderAdmin || "Admin",
+    sentAt: new Date().toISOString(),
+    status: emailRes?.simulated ? "simulated" : "sent",
+    recipientsSample: actualRecipients.slice(0, 10).map((r) => r.company || r.companyName || r.email)
+  };
+
+  const currentBroadcasts = readLocal(STORAGE_KEYS.BROADCASTS, []);
+  currentBroadcasts.unshift(broadcastRecord);
+  writeLocal(STORAGE_KEYS.BROADCASTS, currentBroadcasts);
+  emitSubscribers("broadcasts", currentBroadcasts);
+
+  if (db) {
+    try {
+      await setDoc(doc(db, "supplierBroadcastHistory", broadcastRecord.id), broadcastRecord);
+    } catch (err) {
+      console.warn("[Firebase] Could not save broadcast to Firestore, saved locally:", err.message);
+    }
+  }
+
+  addNotification({
+    title: `Broadcast: ${broadcastRecord.subject}`,
+    message: `Dispatched to ${broadcastRecord.recipientCount} supplier(s) by ${broadcastRecord.sentBy}`,
+    type: "broadcast"
+  });
+
+  return {
+    success: true,
+    record: broadcastRecord,
+    emailRes
+  };
 }
 
