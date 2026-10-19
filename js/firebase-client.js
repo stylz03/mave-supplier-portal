@@ -59,85 +59,6 @@ let storage = null;
 let auth = null;
 let isConnected = false;
 
-function resolveApiKey() {
-  if (typeof window !== "undefined") {
-    if (window.__FIREBASE_CONFIG__?.apiKey) return window.__FIREBASE_CONFIG__.apiKey;
-    const local = localStorage.getItem("mureza_firebase_api_key");
-    if (local) return local;
-  }
-  return "";
-}
-
-export function initFirebase(customKey) {
-  const key = customKey || resolveApiKey();
-  if (!key) return false;
-  FIREBASE_CONFIG.apiKey = key;
-
-  try {
-    const existingApps = getApps();
-    const named = existingApps.find((a) => a.name === "MaveSupplierPortal");
-    if (named) {
-      app = named;
-    } else {
-      app = initializeApp(FIREBASE_CONFIG, "MaveSupplierPortal");
-    }
-    db = getFirestore(app);
-    storage = getStorage(app);
-    try { auth = getAuth(app); } catch (e) {}
-    isConnected = true;
-    console.log("[Firebase] Initialized connection to mave-invest-prod");
-    attachAllFirestoreListeners();
-    return true;
-  } catch (err) {
-    try {
-      const existingApps = getApps();
-      if (existingApps.length > 0) {
-        app = existingApps[0];
-      } else {
-        app = initializeApp(FIREBASE_CONFIG);
-      }
-      db = getFirestore(app);
-      storage = getStorage(app);
-      try { auth = getAuth(app); } catch (e) {}
-      isConnected = true;
-      attachAllFirestoreListeners();
-      return true;
-    } catch (e) {
-      console.warn("[Firebase] Init note:", e.message);
-      return false;
-    }
-  }
-}
-
-// Auto-initialize if key is present
-initFirebase();
-
-// Attempt silent fetch of local gitignored config if available
-if (!isConnected && typeof window !== "undefined" && typeof fetch === "function") {
-  fetch("/firebase-config.json")
-    .then((r) => (r.ok ? r.json() : null))
-    .then((cfg) => {
-      if (cfg?.apiKey) {
-        localStorage.setItem("mureza_firebase_api_key", cfg.apiKey);
-        initFirebase(cfg.apiKey);
-      }
-    })
-    .catch(() => {});
-}
-
-export function setFirebaseApiKey(key) {
-  if (typeof window !== "undefined" && key) {
-    localStorage.setItem("mureza_firebase_api_key", key.trim());
-    return initFirebase(key.trim());
-  }
-  return false;
-}
-
-export function getIsConnected() {
-  return isConnected && db !== null;
-}
-
-export { app, db, storage, isConnected };
 
 // ============================================================
 // DEFAULT SEED DATA (from MUREZA Supplier Deck & Portal Plan)
@@ -488,6 +409,32 @@ function attachFirestoreListener(type) {
         },
         (err) => console.warn("[Firebase] Notifications sync notice:", err.message)
       );
+    } else if (type === "tenders") {
+      const q = collection(db, "supplierTenders");
+      firestoreUnsubs.tenders = onSnapshot(
+        q,
+        (snap) => {
+          if (!snap.empty) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            writeLocal(STORAGE_KEYS.TENDERS, list);
+            emitSubscribers("tenders", list);
+          }
+        },
+        (err) => console.warn("[Firestore] Tenders subscription notice:", err.message)
+      );
+    } else if (type === "bids") {
+      const q = collection(db, "supplierBids");
+      firestoreUnsubs.bids = onSnapshot(
+        q,
+        (snap) => {
+          if (!snap.empty) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            writeLocal(STORAGE_KEYS.BIDS, list);
+            emitSubscribers("bids", list);
+          }
+        },
+        (err) => console.warn("[Firestore] Bids subscription notice:", err.message)
+      );
     }
   } catch (err) {
     console.warn(`[Firebase] Could not attach listener for ${type}:`, err.message);
@@ -500,7 +447,89 @@ function attachAllFirestoreListeners() {
   attachFirestoreListener("tiers");
   attachFirestoreListener("submissions");
   attachFirestoreListener("notifications");
+  attachFirestoreListener("tenders");
+  attachFirestoreListener("bids");
 }
+
+function resolveApiKey() {
+  if (typeof window !== "undefined") {
+    if (window.__FIREBASE_CONFIG__?.apiKey) return window.__FIREBASE_CONFIG__.apiKey;
+    const local = localStorage.getItem("mureza_firebase_api_key");
+    if (local) return local;
+  }
+  return "";
+}
+
+export function initFirebase(customKey) {
+  const key = customKey || resolveApiKey();
+  if (!key) return false;
+  FIREBASE_CONFIG.apiKey = key;
+
+  try {
+    const existingApps = getApps();
+    const named = existingApps.find((a) => a.name === "MaveSupplierPortal");
+    if (named) {
+      app = named;
+    } else {
+      app = initializeApp(FIREBASE_CONFIG, "MaveSupplierPortal");
+    }
+    db = getFirestore(app);
+    storage = getStorage(app);
+    try { auth = getAuth(app); } catch (e) {}
+    isConnected = true;
+    console.log("[Firebase] Initialized connection to mave-invest-prod");
+    attachAllFirestoreListeners();
+    return true;
+  } catch (err) {
+    try {
+      const existingApps = getApps();
+      if (existingApps.length > 0) {
+        app = existingApps[0];
+      } else {
+        app = initializeApp(FIREBASE_CONFIG);
+      }
+      db = getFirestore(app);
+      storage = getStorage(app);
+      try { auth = getAuth(app); } catch (e) {}
+      isConnected = true;
+      attachAllFirestoreListeners();
+      return true;
+    } catch (e) {
+      console.warn("[Firebase] Init note:", e.message);
+      return false;
+    }
+  }
+}
+
+// Auto-initialize if key is present
+initFirebase();
+
+// Attempt silent fetch of local / static config if available
+if (!isConnected && typeof window !== "undefined" && typeof fetch === "function") {
+  fetch("/firebase-config.json")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((cfg) => {
+      if (cfg?.apiKey) {
+        localStorage.setItem("mureza_firebase_api_key", cfg.apiKey);
+        initFirebase(cfg.apiKey);
+      }
+    })
+    .catch(() => {});
+}
+
+export function setFirebaseApiKey(key) {
+  if (typeof window !== "undefined" && key) {
+    localStorage.setItem("mureza_firebase_api_key", key.trim());
+    return initFirebase(key.trim());
+  }
+  return false;
+}
+
+export function getIsConnected() {
+  return isConnected && db !== null;
+}
+
+export { app, db, storage, isConnected };
 
 // ============================================================
 // 1. PAGE CONTENT API
@@ -975,25 +1004,7 @@ export function onTendersSnapshot(callback) {
   subscribers.tenders.add(callback);
   const current = readLocal(STORAGE_KEYS.TENDERS, DEFAULT_TENDERS);
   callback(current);
-
-  if (db && !firestoreUnsubs.tenders) {
-    try {
-      const q = collection(db, "supplierTenders");
-      firestoreUnsubs.tenders = onSnapshot(
-        q,
-        (snap) => {
-          if (!snap.empty) {
-            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            writeLocal(STORAGE_KEYS.TENDERS, list);
-            emitSubscribers("tenders", list);
-          }
-        },
-        (err) => console.warn("[Firestore] Tenders subscription notice:", err.message)
-      );
-    } catch (e) {
-      console.warn("Firestore tenders listen skipped:", e);
-    }
-  }
+  attachFirestoreListener("tenders");
 
   return () => {
     subscribers.tenders.delete(callback);
@@ -1008,25 +1019,7 @@ export function onBidsSnapshot(callback) {
   subscribers.bids.add(callback);
   const current = readLocal(STORAGE_KEYS.BIDS, []);
   callback(current);
-
-  if (db && !firestoreUnsubs.bids) {
-    try {
-      const q = collection(db, "supplierBids");
-      firestoreUnsubs.bids = onSnapshot(
-        q,
-        (snap) => {
-          if (!snap.empty) {
-            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            writeLocal(STORAGE_KEYS.BIDS, list);
-            emitSubscribers("bids", list);
-          }
-        },
-        (err) => console.warn("[Firestore] Bids subscription notice:", err.message)
-      );
-    } catch (e) {
-      console.warn("Firestore bids listen skipped:", e);
-    }
-  }
+  attachFirestoreListener("bids");
 
   return () => {
     subscribers.bids.delete(callback);

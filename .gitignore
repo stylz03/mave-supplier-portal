@@ -13,3 +13,4 @@ js/config.local.js
 tools/node_modules/
 tools/out/
 assets/film-van/raw/
+.env*.local
